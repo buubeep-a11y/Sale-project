@@ -1365,9 +1365,9 @@ const StockPage = () => {
   const [filter, setFilter] = React.useState("all");
 
   const categories = ["all", ...new Set(products.map(p => p.category))];
-  const lowCount = products.filter(p => (p.stock - p.reserved) < p.lowAt).length;
+  const lowCount = products.filter(p => p.stock_qty < p.min_stock).length;
   const filtered = filter === "all" ? products : products.filter(p => p.category === filter);
-  const totalValue = products.reduce((s, p) => s + p.stock * p.price, 0);
+  const totalValue = products.reduce((s, p) => s + (p.stock_qty || 0) * (p.price_per_kg || 0), 0);
 
   return (
     <div className="page">
@@ -1384,7 +1384,7 @@ const StockPage = () => {
           <div className="kpi-value"><CountUp value={totalValue/1000000} format={n=>n.toFixed(1)} prefix="฿" suffix="M"/></div>
         </div>
         <div className="kpi" style={{'--accent':'var(--violet)'}}>
-          <div className="kpi-label">Active SKUs</div>
+          <div className="kpi-label">Active Products</div>
           <div className="kpi-value"><CountUp value={products.length}/><span className="unit">items</span></div>
         </div>
         <div className="kpi" style={{'--accent':'var(--emerald)'}}>
@@ -1393,7 +1393,7 @@ const StockPage = () => {
         </div>
         <div className="kpi" style={{'--accent':'var(--rose)'}}>
           <div className="kpi-label">Reorder Required</div>
-          <div className="kpi-value"><CountUp value={lowCount}/><span className="unit">SKUs</span></div>
+          <div className="kpi-value"><CountUp value={lowCount}/><span className="unit">items</span></div>
         </div>
       </div>
 
@@ -1410,21 +1410,23 @@ const StockPage = () => {
         <table>
           <thead>
             <tr>
-              <th>Product</th><th>Grade</th><th className="right">On Hand</th><th className="right">Available</th><th>Status</th>
+              <th>Product</th><th>Grade</th><th>Size</th><th>Length</th><th className="right">Stock (Kg)</th><th className="right">Min Stock</th><th>Status</th>
             </tr>
           </thead>
           <tbody>
             {filtered.map(p => {
-              const avail = p.stock - p.reserved;
-              const pct = Math.min(100, (avail / (p.lowAt * 3)) * 100);
-              const klass = avail < p.lowAt ? "danger" : avail < p.lowAt * 1.5 ? "warn" : "ok";
+              const stockQty = p.stock_qty || 0;
+              const minStock = p.min_stock || 0;
+              const klass = stockQty < minStock ? "danger" : stockQty < minStock * 1.5 ? "warn" : "ok";
               return (
-                <tr key={p.sku}>
-                  <td><div className="font-semi" style={{fontSize:13}}>{p.name}</div><div className="text-faint text-mono" style={{fontSize:11}}>{p.sku}</div></td>
+                <tr key={p.code}>
+                  <td><div className="font-semi" style={{fontSize:13}}>{p.name}</div><div className="text-faint text-mono" style={{fontSize:11}}>{p.code}</div></td>
                   <td><span className="badge muted">{p.grade}</span></td>
-                  <td className="num right">{p.stock.toLocaleString()} {p.unit}</td>
-                  <td className="num right font-semi">{avail.toFixed(1)}</td>
-                  <td><span className={`badge ${klass}`}><span className="dot"></span>{avail < p.lowAt ? "Reorder" : "In stock"}</span></td>
+                  <td className="text-mono" style={{fontSize:12}}>{p.size || '-'}</td>
+                  <td className="text-mono" style={{fontSize:12}}>{p.length || '-'}</td>
+                  <td className="num right">{stockQty.toLocaleString()} kg</td>
+                  <td className="num right text-faint">{minStock.toLocaleString()} kg</td>
+                  <td><span className={`badge ${klass}`}><span className="dot"></span>{stockQty < minStock ? "Reorder" : "In stock"}</span></td>
                 </tr>
               );
             })}
@@ -1659,12 +1661,14 @@ const ImportPage = () => {
         const products = rows.map((row, i) => ({
           code: row.code || row.Code || row.sku || row.SKU || `SKU-${i}`,
           name: row.name || row.Name || "",
-          category: row.category || row.Category || "",
-          size: row.size || row.Size || row.grade || row.Grade || "",
-          unit: row.unit || row.Unit || "pcs",
-          price_per_unit: parseFloat(row.price_per_unit || row.price || row.Price || 0),
+          grade: row.grade || row.Grade || "",
+          size: row.size || row.Size || "",
+          length: row.length || row.Length || "",
+          unit: row.unit || row.Unit || "kg",
+          price_per_kg: parseFloat(row.price_per_kg || row.price_per_unit || row.price || row.Price || 0),
           stock_qty: parseFloat(row.stock_qty || row.stock || row.Stock || 0),
-          min_stock: parseInt(row.min_stock || row.lowAt || row.low_at || 50),
+          min_stock: parseFloat(row.min_stock || row.lowAt || row.low_at || 50),
+          category: row.category || row.Category || "",
         }));
 
         const result = await supabaseHelpers.insertProducts(products);
@@ -1700,9 +1704,9 @@ const ImportPage = () => {
   const downloadTemplate = () => {
     let csv = "";
     if (importType === "products") {
-      csv = "code,name,category,size,unit,price_per_unit,stock_qty,min_stock\n";
-      csv += "RB-DB10-SD40,Deformed Bar DB10,Rebar,SD40,ton,24800,100,50\n";
-      csv += "HB-H200-SS400,H-Beam 200×200,Beams,SS400,pcs,8400,200,100\n";
+      csv = "code,name,grade,size,length,unit,price_per_kg,stock_qty,min_stock,category\n";
+      csv += "RB-DB10-SD40,Deformed Bar DB10,SD40,10mm,12m,kg,24.8,142500,50000,Rebar\n";
+      csv += "HB-H200-SS400,H-Beam 200×200,SS400,200×200mm,10m,kg,8.4,12480,10000,Beams\n";
     } else {
       csv = "code,name,phone,address\n";
       csv += "C-0001,Bangkok Construction Co.,02-555-1842,123 Sukhumvit Rd, Bangkok\n";
