@@ -1,658 +1,1947 @@
 <!DOCTYPE html>
-<html lang="th">
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SteelFlow — ระบบจัดการร้านเหล็ก</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>SteelFlow · Sales Report</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
 <style>
+/* ===== SteelFlow Design Tokens ===== */
 :root {
-  --bg: #0f1117;
-  --bg2: #181c27;
-  --bg3: #1e2333;
-  --border: #2a3045;
-  --accent: #e8a830;
-  --accent2: #f0c060;
-  --red: #e85555;
-  --green: #3dba7a;
-  --blue: #4a9eff;
-  --text: #e8eaf0;
-  --text2: #8892aa;
-  --text3: #555e75;
-  --font: 'IBM Plex Sans Thai', sans-serif;
-  --mono: 'IBM Plex Mono', monospace;
-  --radius: 8px;
+  --bg: #070d18;
+  --bg-elev: #0d1626;
+  --bg-card: #111d33;
+  --bg-card-2: #16243d;
+  --bg-hover: #1a2a45;
+  --border: #1f2f4a;
+  --border-strong: #2a3d5e;
+  --text: #e6edf7;
+  --text-dim: #8a9bb8;
+  --text-faint: #5d6e8a;
+  --cyan: #22d3ee;
+  --cyan-glow: rgba(34, 211, 238, 0.18);
+  --cyan-deep: #0891b2;
+  --amber: #f59e0b;
+  --emerald: #10b981;
+  --rose: #f43f5e;
+  --violet: #8b5cf6;
+  --orange: #fb923c;
+
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-xl: 20px;
+
+  --shadow-card: 0 1px 0 rgba(255,255,255,0.04) inset, 0 8px 30px rgba(0,0,0,0.35);
+  --shadow-glow: 0 0 0 1px var(--cyan-glow), 0 8px 40px var(--cyan-glow);
+
+  --font-sans: "Space Grotesk", "Geist", -apple-system, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "Geist Mono", ui-monospace, monospace;
 }
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 14px; min-height: 100vh; }
-
-/* Layout */
-.layout { display: flex; min-height: 100vh; }
-.sidebar { width: 220px; background: var(--bg2); border-right: 1px solid var(--border); display: flex; flex-direction: column; position: fixed; top: 0; bottom: 0; left: 0; z-index: 100; }
-.main { margin-left: 220px; flex: 1; padding: 28px; min-height: 100vh; }
-
-/* Sidebar */
-.logo { padding: 20px 20px 16px; border-bottom: 1px solid var(--border); }
-.logo-title { font-size: 18px; font-weight: 600; color: var(--accent); letter-spacing: 0.5px; }
-.logo-sub { font-size: 11px; color: var(--text3); margin-top: 2px; font-family: var(--mono); }
-.nav { padding: 12px 0; flex: 1; }
-.nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 20px; cursor: pointer; color: var(--text2); font-size: 13.5px; transition: all 0.15s; border-left: 3px solid transparent; }
-.nav-item:hover { background: var(--bg3); color: var(--text); }
-.nav-item.active { background: var(--bg3); color: var(--accent); border-left-color: var(--accent); }
-.nav-icon { font-size: 16px; width: 20px; text-align: center; }
-.sidebar-footer { padding: 16px 20px; border-top: 1px solid var(--border); font-size: 11px; color: var(--text3); font-family: var(--mono); }
-
-/* Page */
-.page { display: none; }
-.page.active { display: block; }
-.page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
-.page-title { font-size: 20px; font-weight: 600; }
-.page-sub { color: var(--text2); font-size: 13px; margin-top: 3px; }
-
-/* Cards */
-.card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
-.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
-.kpi { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; }
-.kpi-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.8px; font-family: var(--mono); }
-.kpi-value { font-size: 26px; font-weight: 600; margin-top: 6px; font-family: var(--mono); }
-.kpi-change { font-size: 12px; color: var(--text2); margin-top: 4px; }
-.kpi.accent .kpi-value { color: var(--accent); }
-.kpi.green .kpi-value { color: var(--green); }
-.kpi.red .kpi-value { color: var(--red); }
-.kpi.blue .kpi-value { color: var(--blue); }
-
-/* Table */
-.table-wrap { overflow-x: auto; }
-table { width: 100%; border-collapse: collapse; }
-th { text-align: left; padding: 10px 14px; font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.8px; border-bottom: 1px solid var(--border); font-family: var(--mono); font-weight: 500; }
-td { padding: 12px 14px; border-bottom: 1px solid var(--border); color: var(--text); font-size: 13.5px; }
-tr:last-child td { border-bottom: none; }
-tr:hover td { background: var(--bg3); }
-.mono { font-family: var(--mono); }
-
-/* Badge */
-.badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 11px; font-family: var(--mono); font-weight: 500; }
-.badge-green { background: rgba(61,186,122,0.15); color: var(--green); }
-.badge-red { background: rgba(232,85,85,0.15); color: var(--red); }
-.badge-yellow { background: rgba(232,168,48,0.15); color: var(--accent); }
-.badge-blue { background: rgba(74,158,255,0.15); color: var(--blue); }
-.badge-gray { background: rgba(136,146,170,0.15); color: var(--text2); }
-
-/* Buttons */
-.btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: var(--radius); font-size: 13px; font-family: var(--font); cursor: pointer; border: none; transition: all 0.15s; font-weight: 500; }
-.btn-primary { background: var(--accent); color: #111; }
-.btn-primary:hover { background: var(--accent2); }
-.btn-ghost { background: transparent; color: var(--text2); border: 1px solid var(--border); }
-.btn-ghost:hover { background: var(--bg3); color: var(--text); }
-.btn-danger { background: rgba(232,85,85,0.15); color: var(--red); border: 1px solid rgba(232,85,85,0.3); }
-.btn-danger:hover { background: rgba(232,85,85,0.25); }
-.btn-sm { padding: 5px 10px; font-size: 12px; }
-
-/* Form */
-.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.form-group { display: flex; flex-direction: column; gap: 6px; }
-.form-group.full { grid-column: 1 / -1; }
-label { font-size: 12px; color: var(--text2); font-family: var(--mono); }
-input, select, textarea { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius); padding: 9px 12px; color: var(--text); font-family: var(--font); font-size: 13.5px; width: 100%; transition: border 0.15s; outline: none; }
-input:focus, select:focus, textarea:focus { border-color: var(--accent); }
-select option { background: var(--bg3); }
-
-/* Modal */
-.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 999; align-items: center; justify-content: center; }
-.modal-overlay.open { display: flex; }
-.modal { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 28px; width: 560px; max-height: 90vh; overflow-y: auto; }
-.modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
-.modal-title { font-size: 16px; font-weight: 600; }
-.modal-close { background: none; border: none; color: var(--text2); cursor: pointer; font-size: 20px; padding: 4px; }
-.modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
-
-/* Alert */
-.alert { padding: 10px 14px; border-radius: var(--radius); font-size: 13px; margin-bottom: 16px; display: none; }
-.alert.show { display: block; }
-.alert-success { background: rgba(61,186,122,0.15); color: var(--green); border: 1px solid rgba(61,186,122,0.3); }
-.alert-error { background: rgba(232,85,85,0.15); color: var(--red); border: 1px solid rgba(232,85,85,0.3); }
-
-/* Low stock indicator */
-.stock-low { color: var(--red); }
-.stock-ok { color: var(--green); }
-.stock-warn { color: var(--accent); }
-
-/* Loading */
-.loading { text-align: center; padding: 40px; color: var(--text3); font-family: var(--mono); }
-
-/* Section separator */
-.section-title { font-size: 13px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.8px; font-family: var(--mono); margin-bottom: 14px; }
-
-/* Order items */
-.order-item-row { display: grid; grid-template-columns: 1fr 100px 120px 40px; gap: 10px; align-items: center; margin-bottom: 8px; }
-.order-total { text-align: right; margin-top: 12px; font-size: 16px; font-weight: 600; font-family: var(--mono); color: var(--accent); }
-
-/* Stats chart placeholder */
-.chart-bar-wrap { margin-top: 16px; }
-.chart-bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
-.chart-bar-label { width: 60px; font-size: 12px; color: var(--text2); font-family: var(--mono); }
-.chart-bar-bg { flex: 1; background: var(--bg3); border-radius: 4px; height: 24px; overflow: hidden; }
-.chart-bar-fill { height: 100%; background: var(--accent); border-radius: 4px; transition: width 0.8s ease; display: flex; align-items: center; padding-left: 8px; font-size: 11px; font-family: var(--mono); color: #111; font-weight: 600; }
-
-/* Scrollbar */
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: var(--bg); }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-
-@media (max-width: 900px) {
-  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
-  .sidebar { width: 60px; }
-  .logo-title, .logo-sub, .nav-item span { display: none; }
-  .main { margin-left: 60px; padding: 16px; }
+html, body { height: 100%; }
+body {
+  font-family: var(--font-sans);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.45;
+  overflow: hidden;
+  background-image:
+    radial-gradient(1200px 600px at 20% -10%, rgba(34,211,238,0.06), transparent 60%),
+    radial-gradient(900px 500px at 100% 100%, rgba(139,92,246,0.05), transparent 60%),
+    linear-gradient(var(--bg), var(--bg));
 }
+
+#root { height: 100%; }
+
+button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+input, select, textarea { font-family: inherit; color: inherit; }
+
+.app {
+  display: grid;
+  grid-template-columns: 248px 1fr;
+  height: 100vh;
+}
+
+.sidebar {
+  background: linear-gradient(180deg, rgba(13,22,38,0.9), rgba(7,13,24,0.95));
+  border-right: 1px solid var(--border);
+  backdrop-filter: blur(20px);
+  display: flex;
+  flex-direction: column;
+  padding: 18px 14px;
+  position: relative;
+  z-index: 10;
+}
+.sidebar::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(400px 200px at 50% 0%, rgba(34,211,238,0.08), transparent 70%);
+  pointer-events: none;
+}
+.brand {
+  display: flex; align-items: center; gap: 10px;
+  padding: 4px 8px 18px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 14px;
+  position: relative;
+}
+.brand-logo {
+  width: 34px; height: 34px;
+  background: linear-gradient(135deg, var(--cyan), var(--cyan-deep));
+  border-radius: 9px;
+  display: grid; place-items: center;
+  box-shadow: 0 0 24px var(--cyan-glow), inset 0 1px 0 rgba(255,255,255,0.3);
+  position: relative;
+  overflow: hidden;
+}
+.brand-logo::after {
+  content: "";
+  position: absolute; inset: 0;
+  background: repeating-linear-gradient(45deg, transparent 0 4px, rgba(0,0,0,0.18) 4px 5px);
+}
+.brand-name { font-weight: 700; font-size: 17px; letter-spacing: -0.01em; }
+.brand-sub { font-size: 10px; color: var(--text-faint); font-family: var(--font-mono); letter-spacing: 0.1em; text-transform: uppercase; margin-top: 1px; }
+
+.nav-section-label {
+  font-size: 10px; color: var(--text-faint);
+  font-family: var(--font-mono); letter-spacing: 0.12em; text-transform: uppercase;
+  padding: 14px 10px 6px;
+}
+.nav-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 9px 11px;
+  border-radius: 8px;
+  color: var(--text-dim);
+  font-size: 13.5px;
+  font-weight: 500;
+  width: 100%;
+  text-align: left;
+  position: relative;
+  transition: background .15s ease, color .15s ease, transform .15s ease;
+}
+.nav-item:hover { background: var(--bg-hover); color: var(--text); }
+.nav-item.active {
+  background: linear-gradient(90deg, rgba(34,211,238,0.12), rgba(34,211,238,0.02));
+  color: var(--text);
+  box-shadow: inset 1px 0 0 var(--cyan);
+}
+.nav-item.active::before {
+  content: "";
+  position: absolute; left: -1px; top: 6px; bottom: 6px;
+  width: 2px; background: var(--cyan);
+  box-shadow: 0 0 12px var(--cyan);
+  border-radius: 2px;
+}
+.nav-icon { width: 18px; height: 18px; flex-shrink: 0; opacity: 0.9; }
+.nav-badge {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--bg-card-2);
+  color: var(--text-dim);
+}
+.nav-badge.alert { background: rgba(244,63,94,0.15); color: #fca5b8; }
+
+.sidebar-footer {
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.user-chip {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+}
+.avatar {
+  width: 30px; height: 30px;
+  background: linear-gradient(135deg, var(--violet), var(--cyan));
+  border-radius: 50%;
+  display: grid; place-items: center;
+  font-weight: 700; font-size: 12px;
+  color: white;
+}
+.user-name { font-size: 13px; font-weight: 600; }
+.user-role { font-size: 11px; color: var(--text-faint); font-family: var(--font-mono); }
+
+.main {
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.topbar {
+  display: flex; align-items: center; gap: 16px;
+  padding: 14px 28px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(7,13,24,0.6);
+  backdrop-filter: blur(10px);
+  position: relative;
+  z-index: 5;
+}
+.crumbs { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-faint); font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.1em; }
+.crumbs strong { color: var(--text); font-weight: 600; }
+.topbar .search {
+  flex: 1;
+  max-width: 380px;
+  margin-left: 14px;
+  display: flex; align-items: center; gap: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 7px 12px;
+}
+.topbar .search input { flex: 1; background: none; border: none; outline: none; font-size: 13px; }
+.topbar .search input::placeholder { color: var(--text-faint); }
+.topbar .actions { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+
+.btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 13px; font-weight: 600;
+  transition: all .15s ease;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text);
+}
+.btn:hover { border-color: var(--border-strong); background: var(--bg-hover); }
+.btn.primary {
+  background: linear-gradient(180deg, var(--cyan), var(--cyan-deep));
+  border-color: transparent;
+  color: #042330;
+  box-shadow: 0 0 0 1px var(--cyan-glow), 0 6px 20px var(--cyan-glow);
+}
+.btn.primary:hover { transform: translateY(-1px); box-shadow: 0 0 0 1px var(--cyan-glow), 0 10px 30px var(--cyan-glow); }
+.btn.ghost { background: transparent; border-color: transparent; color: var(--text-dim); }
+.btn.ghost:hover { color: var(--text); background: var(--bg-hover); }
+.btn.icon { padding: 8px; }
+
+.icon-btn {
+  width: 34px; height: 34px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  display: grid; place-items: center;
+  color: var(--text-dim);
+  position: relative;
+  transition: all .15s ease;
+}
+.icon-btn:hover { color: var(--text); background: var(--bg-hover); }
+.icon-btn .dot {
+  position: absolute; top: 5px; right: 5px;
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--rose);
+  box-shadow: 0 0 8px var(--rose);
+}
+
+.page {
+  flex: 1;
+  overflow: auto;
+  padding: 24px 28px 40px;
+  animation: pageIn .35s cubic-bezier(.2,.7,.2,1);
+}
+@keyframes pageIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.page-header {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  margin-bottom: 22px;
+  gap: 16px;
+}
+.page-title { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; }
+.page-sub { color: var(--text-dim); font-size: 13.5px; margin-top: 4px; }
+.page-actions { display: flex; gap: 8px; align-items: center; }
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 18px;
+  box-shadow: var(--shadow-card);
+  position: relative;
+  transition: border-color .2s ease, transform .2s ease;
+}
+.card.hover:hover { border-color: var(--border-strong); transform: translateY(-1px); }
+.card-title { font-size: 13px; font-weight: 600; color: var(--text); display: flex; align-items: center; gap: 8px; }
+.card-sub { font-size: 11.5px; color: var(--text-faint); font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.08em; }
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 22px;
+}
+.kpi {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 18px;
+  position: relative;
+  overflow: hidden;
+  transition: all .25s ease;
+}
+.kpi:hover { border-color: var(--cyan); transform: translateY(-2px); box-shadow: var(--shadow-glow); }
+.kpi::before {
+  content: "";
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, var(--accent, var(--cyan)), transparent);
+  opacity: 0.7;
+}
+.kpi-label { font-size: 11.5px; color: var(--text-faint); font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.1em; }
+.kpi-value { font-size: 30px; font-weight: 700; font-family: var(--font-mono); letter-spacing: -0.02em; margin-top: 8px; }
+.kpi-value .unit { font-size: 14px; font-weight: 500; color: var(--text-dim); margin-left: 4px; }
+.kpi-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 12px;
+}
+.delta {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-family: var(--font-mono); font-size: 12px; font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+.delta.up { color: #6ee7b7; background: rgba(16,185,129,0.12); }
+.delta.down { color: #fda4af; background: rgba(244,63,94,0.12); }
+.delta.flat { color: var(--text-dim); background: var(--bg-card-2); }
+
+.spark { width: 80px; height: 28px; }
+
+.table-wrap { border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; background: var(--bg-card); }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead th {
+  text-align: left;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-faint);
+  padding: 12px 16px;
+  background: var(--bg-elev);
+  border-bottom: 1px solid var(--border);
+  font-weight: 500;
+}
+tbody td {
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+tbody tr:last-child td { border-bottom: none; }
+tbody tr { transition: background .15s ease; }
+tbody tr:hover { background: var(--bg-hover); }
+.mono { font-family: var(--font-mono); }
+.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.right { text-align: right; }
+
+.badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 8px;
+  border-radius: 5px;
+  font-size: 11px; font-weight: 600;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: var(--bg-card-2);
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+}
+.badge .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.badge.ok { color: #6ee7b7; background: rgba(16,185,129,0.1); border-color: rgba(16,185,129,0.3); }
+.badge.warn { color: #fcd34d; background: rgba(245,158,11,0.1); border-color: rgba(245,158,11,0.3); }
+.badge.danger { color: #fda4af; background: rgba(244,63,94,0.1); border-color: rgba(244,63,94,0.3); }
+.badge.info { color: #67e8f9; background: rgba(34,211,238,0.1); border-color: rgba(34,211,238,0.3); }
+.badge.muted { color: var(--text-dim); }
+
+.bar {
+  height: 6px;
+  background: var(--bg-card-2);
+  border-radius: 999px;
+  overflow: hidden;
+  position: relative;
+}
+.bar > div {
+  height: 100%;
+  background: linear-gradient(90deg, var(--cyan), var(--cyan-deep));
+  border-radius: 999px;
+  transition: width 1s cubic-bezier(.2,.7,.2,1);
+  position: relative;
+}
+.bar > div::after {
+  content: "";
+  position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+  animation: shimmer 2.5s linear infinite;
+}
+@keyframes shimmer {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(100%); }
+}
+.bar.warn > div { background: linear-gradient(90deg, var(--amber), var(--orange)); }
+.bar.danger > div { background: linear-gradient(90deg, var(--rose), #be123c); }
+.bar.ok > div { background: linear-gradient(90deg, var(--emerald), #047857); }
+
+.chart-card { padding: 20px; }
+.chart-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+.chart-legend { display: flex; gap: 14px; }
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--text-dim); font-family: var(--font-mono); }
+.legend-dot { width: 8px; height: 8px; border-radius: 2px; }
+
+.tabs {
+  display: inline-flex;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 3px;
+  gap: 2px;
+}
+.tabs button {
+  padding: 5px 11px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+}
+.tabs button.active { background: var(--bg-card); color: var(--text); box-shadow: 0 1px 0 rgba(255,255,255,0.04); }
+.tabs button:hover:not(.active) { color: var(--text); }
+
+.grid-2 { display: grid; grid-template-columns: 1.7fr 1fr; gap: 14px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.row { display: flex; gap: 14px; }
+.col { display: flex; flex-direction: column; gap: 14px; }
+.flex { display: flex; }
+.between { justify-content: space-between; }
+.center { align-items: center; }
+.gap-1 { gap: 6px; } .gap-2 { gap: 10px; } .gap-3 { gap: 14px; }
+.mt-1 { margin-top: 6px; } .mt-2 { margin-top: 12px; } .mt-3 { margin-top: 18px; } .mt-4 { margin-top: 24px; }
+.mb-1 { margin-bottom: 6px; } .mb-2 { margin-bottom: 12px; } .mb-3 { margin-bottom: 18px; }
+.text-dim { color: var(--text-dim); }
+.text-faint { color: var(--text-faint); }
+.text-mono { font-family: var(--font-mono); }
+.text-sm { font-size: 12px; }
+.text-lg { font-size: 16px; }
+.text-xl { font-size: 20px; }
+.font-bold { font-weight: 700; }
+.font-semi { font-weight: 600; }
+.uppercase { text-transform: uppercase; letter-spacing: 0.08em; }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; border: 2px solid var(--bg); }
+::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
+
+.toast-wrap {
+  position: fixed;
+  bottom: 24px; right: 24px;
+  display: flex; flex-direction: column;
+  gap: 10px;
+  z-index: 100;
+  pointer-events: none;
+}
+.toast {
+  pointer-events: auto;
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  min-width: 280px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+  animation: toastIn .3s cubic-bezier(.2,.7,.2,1);
+  font-size: 13px;
+}
+.toast.ok { border-left: 3px solid var(--emerald); }
+.toast.info { border-left: 3px solid var(--cyan); }
+.toast.warn { border-left: 3px solid var(--amber); }
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.filter-bar {
+  display: flex; gap: 8px; align-items: center;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.chip {
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+  transition: all .15s ease;
+}
+.chip:hover { color: var(--text); border-color: var(--border-strong); }
+.chip.active { background: rgba(34,211,238,0.1); color: var(--cyan); border-color: rgba(34,211,238,0.4); }
+.chip .count { margin-left: 6px; opacity: 0.7; }
+
+.ring-stat {
+  display: grid; place-items: center;
+  position: relative;
+}
+.ring-stat svg { transform: rotate(-90deg); }
+.ring-stat .val {
+  position: absolute;
+  font-family: var(--font-mono);
+  font-size: 18px; font-weight: 700;
+}
+
+.tip {
+  position: absolute;
+  background: var(--bg-elev);
+  border: 1px solid var(--border-strong);
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 11.5px;
+  font-family: var(--font-mono);
+  pointer-events: none;
+  white-space: nowrap;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+  z-index: 50;
+  transform: translate(-50%, -110%);
+}
+
+.divider { height: 1px; background: var(--border); margin: 14px 0; }
+.scroll-list { max-height: 320px; overflow-y: auto; }
+
+.timeline { position: relative; padding-left: 22px; }
+.timeline::before {
+  content: ""; position: absolute; left: 7px; top: 8px; bottom: 8px;
+  width: 2px; background: var(--border);
+}
+.tl-item { position: relative; padding: 8px 0 14px; }
+.tl-item::before {
+  content: "";
+  position: absolute; left: -19px; top: 12px;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--cyan);
+  box-shadow: 0 0 0 3px var(--bg), 0 0 12px var(--cyan-glow);
+}
+.tl-item.muted::before { background: var(--text-faint); box-shadow: 0 0 0 3px var(--bg); }
+.tl-item.warn::before { background: var(--amber); box-shadow: 0 0 0 3px var(--bg), 0 0 12px rgba(245,158,11,0.4); }
+.tl-item.ok::before { background: var(--emerald); box-shadow: 0 0 0 3px var(--bg), 0 0 12px rgba(16,185,129,0.4); }
+
+.cust-card {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  transition: all .2s ease;
+  cursor: pointer;
+}
+.cust-card:hover { border-color: var(--border-strong); transform: translateX(2px); }
+.cust-avatar {
+  width: 38px; height: 38px;
+  border-radius: 8px;
+  display: grid; place-items: center;
+  font-weight: 700; font-size: 13px;
+  color: white;
+  background: linear-gradient(135deg, var(--cyan), var(--cyan-deep));
+  flex-shrink: 0;
+}
+
+.count-up { display: inline-block; }
+
+.fadeIn { animation: fadeIn .2s ease; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 </style>
 </head>
 <body>
+<div id="root"></div>
 
-<div class="layout">
-  <!-- Sidebar -->
-  <aside class="sidebar">
-    <div class="logo">
-      <div class="logo-title">⚙ SteelFlow</div>
-      <div class="logo-sub">ระบบจัดการร้านเหล็ก</div>
-    </div>
-    <nav class="nav">
-      <div class="nav-item active" onclick="showPage('dashboard')">
-        <span class="nav-icon">▦</span><span>Dashboard</span>
-      </div>
-      <div class="nav-item" onclick="showPage('stock')">
-        <span class="nav-icon">▤</span><span>สต็อกสินค้า</span>
-      </div>
-      <div class="nav-item" onclick="showPage('orders')">
-        <span class="nav-icon">▣</span><span>คำสั่งซื้อ</span>
-      </div>
-      <div class="nav-item" onclick="showPage('customers')">
-        <span class="nav-icon">◉</span><span>ลูกค้า</span>
-      </div>
-      <div class="nav-item" onclick="showPage('report')">
-        <span class="nav-icon">▥</span><span>รายงาน</span>
-      </div>
-    </nav>
-    <div class="sidebar-footer">v1.0 · gepixbhlsk...</div>
-  </aside>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0"></script>
 
-  <!-- Main -->
-  <main class="main">
+<script type="text/babel">
+// Supabase Config
+const SUPABASE_URL = "https://gepixbhlskcmmeadubmx.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdlcGl4Ymhsc2tjbW1lYWR1Ym14Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg5MTQ0NTEsImV4cCI6MjA5NDQ5MDQ1MX0.RXgtSuEKH-tB23V62hwpopC6s3DkBX8NEB5cVux3CW4";
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    <!-- Alert global -->
-    <div class="alert" id="global-alert"></div>
+const supabaseHelpers = {
+  async getProducts() {
+    try {
+      const { data, error } = await supabase.from('products').select('*');
+      if (error) throw error;
+      return data || [];
+    } catch (e) {
+      console.error('Error fetching products:', e);
+      return [];
+    }
+  },
+  async getCustomers() {
+    try {
+      const { data, error } = await supabase.from('customers').select('*');
+      if (error) throw error;
+      return data || [];
+    } catch (e) {
+      console.error('Error fetching customers:', e);
+      return [];
+    }
+  },
+  async insertProducts(products) {
+    try {
+      const { error } = await supabase.from('products').insert(products);
+      if (error) throw error;
+      return { success: true };
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  },
+  async insertCustomers(customers) {
+    try {
+      const { error } = await supabase.from('customers').insert(customers);
+      if (error) throw error;
+      return { success: true };
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  }
+};
 
-    <!-- DASHBOARD -->
-    <div class="page active" id="page-dashboard">
-      <div class="page-header">
-        <div>
-          <div class="page-title">Dashboard</div>
-          <div class="page-sub">ภาพรวมธุรกิจวันนี้</div>
-        </div>
-        <button class="btn btn-ghost btn-sm" onclick="loadDashboard()">↺ รีเฟรช</button>
-      </div>
-      <div class="kpi-grid">
-        <div class="kpi accent"><div class="kpi-label">ยอดขายเดือนนี้</div><div class="kpi-value" id="kpi-sales">—</div><div class="kpi-change">บาท</div></div>
-        <div class="kpi blue"><div class="kpi-label">คำสั่งซื้อทั้งหมด</div><div class="kpi-value" id="kpi-orders">—</div><div class="kpi-change">รายการ</div></div>
-        <div class="kpi green"><div class="kpi-label">ลูกค้าทั้งหมด</div><div class="kpi-value" id="kpi-customers">—</div><div class="kpi-change">ราย</div></div>
-        <div class="kpi red"><div class="kpi-label">สต็อกต่ำกว่ากำหนด</div><div class="kpi-value" id="kpi-lowstock">—</div><div class="kpi-change">รายการ</div></div>
-      </div>
-      <div class="card">
-        <div class="section-title">คำสั่งซื้อล่าสุด</div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>เลขที่</th><th>ลูกค้า</th><th>ประเภท</th><th>สถานะ</th><th>มูลค่า</th><th>วันที่</th></tr></thead>
-            <tbody id="recent-orders"><tr><td colspan="6" class="loading">กำลังโหลด...</td></tr></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+// Data with localStorage support
+window.SteelData = (function() {
+  const fmtTHB = (n) => "฿" + Math.round(n).toLocaleString();
+  const fmtNum = (n) => Math.round(n).toLocaleString();
 
-    <!-- STOCK -->
-    <div class="page" id="page-stock">
-      <div class="page-header">
-        <div>
-          <div class="page-title">สต็อกสินค้า</div>
-          <div class="page-sub">เหล็กเส้น Rebar ทุกขนาด</div>
-        </div>
-        <button class="btn btn-primary" onclick="openModal('modal-product')">+ เพิ่มสินค้า</button>
-      </div>
-      <div class="card">
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>รหัส</th><th>ชื่อสินค้า</th><th>ขนาด</th><th>ราคา/เส้น</th><th>สต็อก</th><th>สต็อกต่ำสุด</th><th>สถานะ</th><th></th></tr></thead>
-            <tbody id="stock-table"><tr><td colspan="8" class="loading">กำลังโหลด...</td></tr></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- ORDERS -->
-    <div class="page" id="page-orders">
-      <div class="page-header">
-        <div>
-          <div class="page-title">คำสั่งซื้อ / ใบเสนอราคา</div>
-          <div class="page-sub">จัดการออเดอร์ทั้งหมด</div>
-        </div>
-        <button class="btn btn-primary" onclick="openModal('modal-order')">+ สร้างคำสั่งซื้อ</button>
-      </div>
-      <div class="card">
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>เลขที่</th><th>ประเภท</th><th>ลูกค้า</th><th>สถานะ</th><th>มูลค่า</th><th>วันที่</th><th></th></tr></thead>
-            <tbody id="orders-table"><tr><td colspan="7" class="loading">กำลังโหลด...</td></tr></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- CUSTOMERS -->
-    <div class="page" id="page-customers">
-      <div class="page-header">
-        <div>
-          <div class="page-title">ลูกค้า</div>
-          <div class="page-sub">ข้อมูลลูกค้าทั้งหมด</div>
-        </div>
-        <button class="btn btn-primary" onclick="openModal('modal-customer')">+ เพิ่มลูกค้า</button>
-      </div>
-      <div class="card">
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>รหัส</th><th>ชื่อ</th><th>เบอร์โทร</th><th>วงเงินเครดิต</th><th>ที่อยู่</th><th></th></tr></thead>
-            <tbody id="customers-table"><tr><td colspan="6" class="loading">กำลังโหลด...</td></tr></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- REPORT -->
-    <div class="page" id="page-report">
-      <div class="page-header">
-        <div>
-          <div class="page-title">รายงานยอดขาย</div>
-          <div class="page-sub">สรุปยอดขายตามสินค้า</div>
-        </div>
-        <button class="btn btn-ghost btn-sm" onclick="loadReport()">↺ รีเฟรช</button>
-      </div>
-      <div class="card">
-        <div class="section-title">ยอดขายตามขนาดเหล็ก</div>
-        <div class="chart-bar-wrap" id="report-chart"><div class="loading">กำลังโหลด...</div></div>
-      </div>
-    </div>
-
-  </main>
-</div>
-
-<!-- Modal: เพิ่มสินค้า -->
-<div class="modal-overlay" id="modal-product">
-  <div class="modal">
-    <div class="modal-header">
-      <div class="modal-title">เพิ่ม / แก้ไขสินค้า</div>
-      <button class="modal-close" onclick="closeModal('modal-product')">✕</button>
-    </div>
-    <input type="hidden" id="product-id">
-    <div class="form-grid">
-      <div class="form-group"><label>รหัสสินค้า</label><input id="product-code" placeholder="เช่น DB12"></div>
-      <div class="form-group"><label>ชื่อสินค้า</label><input id="product-name" placeholder="เหล็กเส้น DB12"></div>
-      <div class="form-group"><label>ขนาด</label><input id="product-size" placeholder="DB12 (12mm)"></div>
-      <div class="form-group"><label>หน่วย</label><input id="product-unit" value="เส้น"></div>
-      <div class="form-group"><label>ราคา/หน่วย (บาท)</label><input id="product-price" type="number" placeholder="185"></div>
-      <div class="form-group"><label>จำนวนสต็อก</label><input id="product-stock" type="number" placeholder="0"></div>
-      <div class="form-group"><label>สต็อกต่ำสุด (แจ้งเตือน)</label><input id="product-minstock" type="number" placeholder="20"></div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modal-product')">ยกเลิก</button>
-      <button class="btn btn-primary" onclick="saveProduct()">บันทึก</button>
-    </div>
-  </div>
-</div>
-
-<!-- Modal: เพิ่มลูกค้า -->
-<div class="modal-overlay" id="modal-customer">
-  <div class="modal">
-    <div class="modal-header">
-      <div class="modal-title">เพิ่ม / แก้ไขลูกค้า</div>
-      <button class="modal-close" onclick="closeModal('modal-customer')">✕</button>
-    </div>
-    <input type="hidden" id="customer-id">
-    <div class="form-grid">
-      <div class="form-group"><label>รหัสลูกค้า</label><input id="customer-code" placeholder="C004"></div>
-      <div class="form-group"><label>ชื่อ / บริษัท</label><input id="customer-name" placeholder="บริษัท..."></div>
-      <div class="form-group"><label>เบอร์โทร</label><input id="customer-phone" placeholder="08x-xxx-xxxx"></div>
-      <div class="form-group"><label>วงเงินเครดิต (บาท)</label><input id="customer-credit" type="number" placeholder="0"></div>
-      <div class="form-group full"><label>ที่อยู่</label><textarea id="customer-address" rows="2" placeholder="ที่อยู่..."></textarea></div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modal-customer')">ยกเลิก</button>
-      <button class="btn btn-primary" onclick="saveCustomer()">บันทึก</button>
-    </div>
-  </div>
-</div>
-
-<!-- Modal: สร้างคำสั่งซื้อ -->
-<div class="modal-overlay" id="modal-order">
-  <div class="modal" style="width:640px">
-    <div class="modal-header">
-      <div class="modal-title">สร้างคำสั่งซื้อ</div>
-      <button class="modal-close" onclick="closeModal('modal-order')">✕</button>
-    </div>
-    <div class="form-grid">
-      <div class="form-group">
-        <label>ประเภท</label>
-        <select id="order-type">
-          <option value="order">คำสั่งซื้อ</option>
-          <option value="quotation">ใบเสนอราคา</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>ลูกค้า</label>
-        <select id="order-customer"></select>
-      </div>
-      <div class="form-group full"><label>หมายเหตุ</label><input id="order-note" placeholder="หมายเหตุ..."></div>
-    </div>
-    <div style="margin-top:16px">
-      <div class="section-title">รายการสินค้า</div>
-      <div id="order-items-wrap"></div>
-      <button class="btn btn-ghost btn-sm" onclick="addOrderItem()" style="margin-top:8px">+ เพิ่มรายการ</button>
-      <div class="order-total" id="order-total-display">รวม: ฿0</div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modal-order')">ยกเลิก</button>
-      <button class="btn btn-primary" onclick="saveOrder()">บันทึก</button>
-    </div>
-  </div>
-</div>
-
-<script>
-const SUPABASE_URL = 'https://gepixbhlskcmmeadubmx.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdlcGl4Ymhsc2tjbW1lYWR1Ym14Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg5MTQ0NTEsImV4cCI6MjA5NDQ5MDQ1MX0.RXgtSuEKH-tB23V62hwpopC6s3DkBX8NEB5cVux3CW4';
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-let allProducts = [];
-let allCustomers = [];
-
-// ---- Navigation ----
-function showPage(name) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.getElementById('page-' + name).classList.add('active');
-  document.querySelectorAll('.nav-item')[['dashboard','stock','orders','customers','report'].indexOf(name)].classList.add('active');
-  if (name === 'dashboard') loadDashboard();
-  if (name === 'stock') loadStock();
-  if (name === 'orders') loadOrders();
-  if (name === 'customers') loadCustomers();
-  if (name === 'report') loadReport();
-}
-
-// ---- Alert ----
-function showAlert(msg, type='success') {
-  const el = document.getElementById('global-alert');
-  el.textContent = msg;
-  el.className = 'alert show alert-' + type;
-  setTimeout(() => el.classList.remove('show'), 3000);
-}
-
-// ---- Modal ----
-function openModal(id) { document.getElementById(id).classList.add('open'); }
-function closeModal(id) { document.getElementById(id).classList.remove('open'); }
-
-// ---- Format ----
-function fmt(n) { return Number(n || 0).toLocaleString('th-TH'); }
-function fmtDate(d) { return new Date(d).toLocaleDateString('th-TH', { day:'2-digit', month:'short', year:'numeric' }); }
-
-function statusBadge(s) {
-  const map = { pending:'badge-yellow', confirmed:'badge-blue', delivered:'badge-green', cancelled:'badge-red', quotation:'badge-gray' };
-  const label = { pending:'รอดำเนินการ', confirmed:'ยืนยันแล้ว', delivered:'จัดส่งแล้ว', cancelled:'ยกเลิก', quotation:'ใบเสนอราคา' };
-  return `<span class="badge ${map[s]||'badge-gray'}">${label[s]||s}</span>`;
-}
-
-// ---- DASHBOARD ----
-async function loadDashboard() {
-  const [{ data: orders }, { data: customers }, { data: products }] = await Promise.all([
-    sb.from('orders').select('*, customers(name)').order('created_at', { ascending: false }),
-    sb.from('customers').select('id'),
-    sb.from('products').select('*'),
-  ]);
-  const thisMonth = new Date(); thisMonth.setDate(1); thisMonth.setHours(0,0,0,0);
-  const monthlySales = (orders||[]).filter(o => o.type==='order' && new Date(o.created_at) >= thisMonth).reduce((s,o) => s + (o.total_amount||0), 0);
-  document.getElementById('kpi-sales').textContent = '฿' + fmt(monthlySales);
-  document.getElementById('kpi-orders').textContent = (orders||[]).filter(o=>o.type==='order').length;
-  document.getElementById('kpi-customers').textContent = (customers||[]).length;
-  const lowStock = (products||[]).filter(p => p.stock_qty <= p.min_stock).length;
-  document.getElementById('kpi-lowstock').textContent = lowStock;
-
-  const recent = (orders||[]).slice(0,8);
-  document.getElementById('recent-orders').innerHTML = recent.length ? recent.map(o => `
-    <tr>
-      <td class="mono">${o.order_no}</td>
-      <td>${o.customers?.name||'—'}</td>
-      <td>${o.type==='quotation'?'ใบเสนอราคา':'คำสั่งซื้อ'}</td>
-      <td>${statusBadge(o.type==='quotation'?'quotation':o.status)}</td>
-      <td class="mono">฿${fmt(o.total_amount)}</td>
-      <td class="mono">${fmtDate(o.created_at)}</td>
-    </tr>`).join('') : '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">ยังไม่มีคำสั่งซื้อ</td></tr>';
-}
-
-// ---- STOCK ----
-async function loadStock() {
-  const { data } = await sb.from('products').select('*').order('code');
-  allProducts = data || [];
-  document.getElementById('stock-table').innerHTML = allProducts.length ? allProducts.map(p => {
-    const low = p.stock_qty <= p.min_stock;
-    const warn = p.stock_qty <= p.min_stock * 1.5 && !low;
-    const cls = low ? 'stock-low' : warn ? 'stock-warn' : 'stock-ok';
-    return `<tr>
-      <td class="mono">${p.code}</td>
-      <td>${p.name}</td>
-      <td>${p.size}</td>
-      <td class="mono">฿${fmt(p.price_per_unit)}</td>
-      <td class="mono ${cls}">${fmt(p.stock_qty)} ${p.unit}</td>
-      <td class="mono">${fmt(p.min_stock)} ${p.unit}</td>
-      <td>${low ? '<span class="badge badge-red">ต่ำ</span>' : warn ? '<span class="badge badge-yellow">ใกล้ต่ำ</span>' : '<span class="badge badge-green">ปกติ</span>'}</td>
-      <td><button class="btn btn-ghost btn-sm" onclick='editProduct(${JSON.stringify(p)})'>แก้ไข</button></td>
-    </tr>`;
-  }).join('') : '<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:24px">ยังไม่มีสินค้า</td></tr>';
-}
-
-function editProduct(p) {
-  document.getElementById('product-id').value = p.id;
-  document.getElementById('product-code').value = p.code;
-  document.getElementById('product-name').value = p.name;
-  document.getElementById('product-size').value = p.size;
-  document.getElementById('product-unit').value = p.unit;
-  document.getElementById('product-price').value = p.price_per_unit;
-  document.getElementById('product-stock').value = p.stock_qty;
-  document.getElementById('product-minstock').value = p.min_stock;
-  openModal('modal-product');
-}
-
-async function saveProduct() {
-  const id = document.getElementById('product-id').value;
-  const data = {
-    code: document.getElementById('product-code').value,
-    name: document.getElementById('product-name').value,
-    size: document.getElementById('product-size').value,
-    unit: document.getElementById('product-unit').value,
-    price_per_unit: parseFloat(document.getElementById('product-price').value) || 0,
-    stock_qty: parseFloat(document.getElementById('product-stock').value) || 0,
-    min_stock: parseFloat(document.getElementById('product-minstock').value) || 0,
+  // Load from localStorage or use defaults
+  const loadProducts = () => {
+    const stored = localStorage.getItem('steelflow_products');
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch (e) {
+        console.error('Error loading products:', e);
+      }
+    }
+    return [
+    { code: "RB-DB10-SD40", name: "Deformed Bar DB10", grade: "SD40", size: "10mm", length: "12m", unit: "kg", stock_qty: 142500, min_stock: 50000, price_per_kg: 24.8, category: "Rebar" },
+    { code: "RB-DB12-SD40", name: "Deformed Bar DB12", grade: "SD40", size: "12mm", length: "12m", unit: "kg", stock_qty: 186200, min_stock: 60000, price_per_kg: 24.6, category: "Rebar" },
+    { code: "RB-DB16-SD50", name: "Deformed Bar DB16", grade: "SD50", size: "16mm", length: "12m", unit: "kg", stock_qty: 38400, min_stock: 50000, price_per_kg: 25.4, category: "Rebar" },
+    { code: "RB-DB20-SD50", name: "Deformed Bar DB20", grade: "SD50", size: "20mm", length: "12m", unit: "kg", stock_qty: 95700, min_stock: 60000, price_per_kg: 25.2, category: "Rebar" },
+    { code: "RB-DB25-SD50", name: "Deformed Bar DB25", grade: "SD50", size: "25mm", length: "12m", unit: "kg", stock_qty: 22100, min_stock: 40000, price_per_kg: 25.6, category: "Rebar" },
+    { code: "HB-H200-SS400", name: "H-Beam 200×200", grade: "SS400", size: "200×200mm", length: "10m", unit: "kg", stock_qty: 12480, min_stock: 10000, price_per_kg: 8.4, category: "Beams" },
+    { code: "HB-H300-SS400", name: "H-Beam 300×300", grade: "SS400", size: "300×300mm", length: "10m", unit: "kg", stock_qty: 10680, min_stock: 8000, price_per_kg: 14.2, category: "Beams" },
+    { code: "IB-I150-A36", name: "I-Beam 150", grade: "A36", size: "150mm", length: "10m", unit: "kg", stock_qty: 5160, min_stock: 5000, price_per_kg: 6.2, category: "Beams" },
+    { code: "PL-SH6-A36", name: "Steel Plate 6mm", grade: "A36", size: "6mm", length: "2000×1000mm", unit: "kg", stock_qty: 58680, min_stock: 15000, price_per_kg: 3.8, category: "Plates" },
+    { code: "PL-SH10-A36", name: "Steel Plate 10mm", grade: "A36", size: "10mm", length: "2000×1000mm", unit: "kg", stock_qty: 58500, min_stock: 10000, price_per_kg: 6.2, category: "Plates" },
+    { code: "PL-SH16-S275", name: "Steel Plate 16mm", grade: "S275", size: "16mm", length: "2000×1000mm", unit: "kg", stock_qty: 50400, min_stock: 5000, price_per_kg: 9.8, category: "Plates" },
+    { code: "CO-HRC-2.0", name: "Hot Rolled Coil 2.0mm", grade: "SS400", size: "2.0mm", length: "1000m", unit: "kg", stock_qty: 248300, min_stock: 120000, price_per_kg: 22.4, category: "Coils" },
+    { code: "CO-CRC-1.2", name: "Cold Rolled Coil 1.2mm", grade: "SPCC", size: "1.2mm", length: "1000m", unit: "kg", stock_qty: 164800, min_stock: 80000, price_per_kg: 26.8, category: "Coils" },
+    { code: "PI-GP50-SS400", name: "Galvanized Pipe 50mm", grade: "SS400", size: "50mm", length: "6m", unit: "kg", stock_qty: 24960, min_stock: 20000, price_per_kg: 1.82, category: "Pipes" },
+    { code: "PI-BS100-SS400", name: "Black Steel Pipe 100mm", grade: "SS400", size: "100mm", length: "6m", unit: "kg", stock_qty: 10900, min_stock: 10000, price_per_kg: 3.64, category: "Pipes" },
+    { code: "WR-SR9-SR24", name: "Wire Rod SR9", grade: "SR24", size: "9mm", length: "1000m", unit: "kg", stock_qty: 184600, min_stock: 80000, price_per_kg: 23.2, category: "Wire" },
+    { code: "AB-L50-SS400", name: "Angle Bar 50×50×5", grade: "SS400", size: "50×50×5mm", length: "6m", unit: "kg", stock_qty: 14460, min_stock: 20000, price_per_kg: 0.94, category: "Angle" },
+    { code: "CH-C100-SS400", name: "Channel C100×50", grade: "SS400", size: "100×50mm", length: "6m", unit: "kg", stock_qty: 6240, min_stock: 8000, price_per_kg: 2.84, category: "Channel" },
+    { code: "FT-FH250-A36", name: "Flat Bar 250", grade: "A36", size: "250×20mm", length: "6m", unit: "kg", stock_qty: 13350, min_stock: 10000, price_per_kg: 1.85, category: "Flat" },
+    { code: "TU-RHS100-SS400", name: "RHS Tube 100mm", grade: "SS400", size: "100×100mm", length: "6m", unit: "kg", stock_qty: 13000, min_stock: 8000, price_per_kg: 5.2, category: "Tube" },
+    { code: "SH-SQ40-SS400", name: "Square Hollow 40mm", grade: "SS400", size: "40×40mm", length: "6m", unit: "kg", stock_qty: 6600, min_stock: 10000, price_per_kg: 2.1, category: "Square" },
+  ];
   };
-  const { error } = id ? await sb.from('products').update(data).eq('id', id) : await sb.from('products').insert(data);
-  if (error) { showAlert('เกิดข้อผิดพลาด: ' + error.message, 'error'); return; }
-  showAlert(id ? 'แก้ไขสินค้าสำเร็จ' : 'เพิ่มสินค้าสำเร็จ');
-  closeModal('modal-product');
-  document.getElementById('product-id').value = '';
-  loadStock();
-}
 
-// ---- ORDERS ----
-async function loadOrders() {
-  const { data } = await sb.from('orders').select('*, customers(name)').order('created_at', { ascending: false });
-  document.getElementById('orders-table').innerHTML = (data||[]).length ? data.map(o => `
-    <tr>
-      <td class="mono">${o.order_no}</td>
-      <td>${o.type==='quotation'?'ใบเสนอราคา':'คำสั่งซื้อ'}</td>
-      <td>${o.customers?.name||'—'}</td>
-      <td>${statusBadge(o.type==='quotation'?'quotation':o.status)}</td>
-      <td class="mono">฿${fmt(o.total_amount)}</td>
-      <td class="mono">${fmtDate(o.created_at)}</td>
-      <td>
-        ${o.status==='pending' && o.type==='order' ? `<button class="btn btn-ghost btn-sm" onclick="updateOrderStatus('${o.id}','confirmed')">ยืนยัน</button>` : ''}
-        ${o.status==='confirmed' ? `<button class="btn btn-ghost btn-sm" onclick="updateOrderStatus('${o.id}','delivered')">จัดส่ง</button>` : ''}
-      </td>
-    </tr>`).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">ยังไม่มีคำสั่งซื้อ</td></tr>';
-}
-
-async function updateOrderStatus(id, status) {
-  const { error } = await sb.from('orders').update({ status }).eq('id', id);
-  if (error) { showAlert('เกิดข้อผิดพลาด', 'error'); return; }
-  showAlert('อัปเดตสถานะสำเร็จ');
-  loadOrders();
-}
-
-// Order Modal
-let orderItems = [];
-async function openOrderModal() {
-  const { data } = await sb.from('customers').select('*').order('code');
-  allCustomers = data || [];
-  document.getElementById('order-customer').innerHTML = allCustomers.map(c => `<option value="${c.id}">${c.code} - ${c.name}</option>`).join('');
-  await sb.from('products').select('*').order('code').then(({data}) => { allProducts = data || []; });
-  orderItems = [];
-  addOrderItem();
-  renderOrderItems();
-  openModal('modal-order');
-}
-
-function addOrderItem() {
-  orderItems.push({ product_id: allProducts[0]?.id || '', qty: 1, price: allProducts[0]?.price_per_unit || 0 });
-  renderOrderItems();
-}
-
-function renderOrderItems() {
-  const wrap = document.getElementById('order-items-wrap');
-  wrap.innerHTML = orderItems.map((item, i) => `
-    <div class="order-item-row">
-      <select onchange="onProductChange(${i},this.value)">
-        ${allProducts.map(p => `<option value="${p.id}" ${p.id===item.product_id?'selected':''} data-price="${p.price_per_unit}">${p.code} - ${p.name}</option>`).join('')}
-      </select>
-      <input type="number" value="${item.qty}" min="1" placeholder="จำนวน" onchange="orderItems[${i}].qty=+this.value;calcOrderTotal()">
-      <input type="number" value="${item.price}" placeholder="ราคา" onchange="orderItems[${i}].price=+this.value;calcOrderTotal()">
-      <button class="btn btn-danger btn-sm" onclick="removeOrderItem(${i})">✕</button>
-    </div>`).join('');
-  calcOrderTotal();
-}
-
-function onProductChange(i, pid) {
-  const p = allProducts.find(p => p.id === pid);
-  orderItems[i].product_id = pid;
-  orderItems[i].price = p?.price_per_unit || 0;
-  renderOrderItems();
-}
-
-function removeOrderItem(i) {
-  orderItems.splice(i, 1);
-  renderOrderItems();
-}
-
-function calcOrderTotal() {
-  const total = orderItems.reduce((s, item) => s + (item.qty * item.price), 0);
-  document.getElementById('order-total-display').textContent = 'รวม: ฿' + fmt(total);
-}
-
-async function saveOrder() {
-  if (!orderItems.length) { showAlert('กรุณาเพิ่มรายการสินค้า', 'error'); return; }
-  const total = orderItems.reduce((s, item) => s + (item.qty * item.price), 0);
-  const orderNo = 'ORD-' + Date.now().toString().slice(-6);
-  const type = document.getElementById('order-type').value;
-  const customerId = document.getElementById('order-customer').value;
-  const note = document.getElementById('order-note').value;
-
-  const { data: order, error } = await sb.from('orders').insert({ order_no: orderNo, type, customer_id: customerId, note, total_amount: total }).select().single();
-  if (error) { showAlert('เกิดข้อผิดพลาด: ' + error.message, 'error'); return; }
-
-  const items = orderItems.map(item => ({ order_id: order.id, product_id: item.product_id, qty: item.qty, price_per_unit: item.price }));
-  await sb.from('order_items').insert(items);
-
-  showAlert('สร้างคำสั่งซื้อ ' + orderNo + ' สำเร็จ');
-  closeModal('modal-order');
-  loadOrders();
-}
-
-// ---- CUSTOMERS ----
-async function loadCustomers() {
-  const { data } = await sb.from('customers').select('*').order('code');
-  allCustomers = data || [];
-  document.getElementById('customers-table').innerHTML = allCustomers.length ? allCustomers.map(c => `
-    <tr>
-      <td class="mono">${c.code}</td>
-      <td>${c.name}</td>
-      <td class="mono">${c.phone||'—'}</td>
-      <td class="mono">฿${fmt(c.credit_limit)}</td>
-      <td>${c.address||'—'}</td>
-      <td><button class="btn btn-ghost btn-sm" onclick='editCustomer(${JSON.stringify(c)})'>แก้ไข</button></td>
-    </tr>`).join('') : '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">ยังไม่มีลูกค้า</td></tr>';
-}
-
-function editCustomer(c) {
-  document.getElementById('customer-id').value = c.id;
-  document.getElementById('customer-code').value = c.code;
-  document.getElementById('customer-name').value = c.name;
-  document.getElementById('customer-phone').value = c.phone || '';
-  document.getElementById('customer-credit').value = c.credit_limit || 0;
-  document.getElementById('customer-address').value = c.address || '';
-  openModal('modal-customer');
-}
-
-async function saveCustomer() {
-  const id = document.getElementById('customer-id').value;
-  const data = {
-    code: document.getElementById('customer-code').value,
-    name: document.getElementById('customer-name').value,
-    phone: document.getElementById('customer-phone').value,
-    credit_limit: parseFloat(document.getElementById('customer-credit').value) || 0,
-    address: document.getElementById('customer-address').value,
+  const loadCustomers = () => {
+    const stored = localStorage.getItem('steelflow_customers');
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch (e) {
+        console.error('Error loading customers:', e);
+      }
+    }
+    return [
+    { id: "C-0142", name: "Bangkok Construction Co.", short: "BK", contact: "Khun Somchai P.", phone: "02-555-1842", email: "purchase@bkc.co.th", tier: "Platinum", credit: 8500000, balance: 1240000, lifetime: 24800000, orders: 86, lastOrder: "2026-05-12", color: "#22d3ee" },
+    { id: "C-0089", name: "Siam Steel Builders", short: "SS", contact: "Khun Niran V.", phone: "02-512-7733", email: "ops@siamsteel.co.th", tier: "Platinum", credit: 12000000, balance: 2840000, lifetime: 38400000, orders: 124, lastOrder: "2026-05-15", color: "#8b5cf6" },
+    { id: "C-0214", name: "Eastern Tower Group", short: "ET", contact: "Khun Pim L.", phone: "038-441-8800", email: "p.lekkla@etgroup.com", tier: "Gold", credit: 5000000, balance: 680000, lifetime: 12400000, orders: 42, lastOrder: "2026-05-14", color: "#10b981" },
+    { id: "C-0317", name: "Chao Phraya Infra Ltd.", short: "CP", contact: "Khun Ananda T.", phone: "02-228-9911", email: "ananda.t@cp-infra.th", tier: "Gold", credit: 6500000, balance: 1820000, lifetime: 16200000, orders: 58, lastOrder: "2026-05-13", color: "#f59e0b" },
+    { id: "C-0408", name: "Pattaya Marine Works", short: "PM", contact: "Khun Veera S.", phone: "038-228-4501", email: "v.suk@pmw.co.th", tier: "Silver", credit: 2500000, balance: 420000, lifetime: 4800000, orders: 24, lastOrder: "2026-05-08", color: "#fb923c" },
+    { id: "C-0512", name: "Nakhon Steel Trading", short: "NS", contact: "Khun Krit J.", phone: "044-318-7720", email: "krit@nakhon-st.com", tier: "Silver", credit: 3000000, balance: 0, lifetime: 6200000, orders: 31, lastOrder: "2026-05-10", color: "#f43f5e" },
+    { id: "C-0623", name: "Phuket Coastal Build", short: "PC", contact: "Khun Mali T.", phone: "076-281-4422", email: "mali@pcbuild.th", tier: "Gold", credit: 4500000, balance: 980000, lifetime: 9800000, orders: 38, lastOrder: "2026-05-11", color: "#22d3ee" },
+    { id: "C-0734", name: "Lanna Industrial Co.", short: "LI", contact: "Khun Anong K.", phone: "053-227-3300", email: "a.kwan@lanna-ind.co.th", tier: "Silver", credit: 2000000, balance: 320000, lifetime: 3600000, orders: 18, lastOrder: "2026-05-09", color: "#8b5cf6" },
+  ];
   };
-  const { error } = id ? await sb.from('customers').update(data).eq('id', id) : await sb.from('customers').insert(data);
-  if (error) { showAlert('เกิดข้อผิดพลาด: ' + error.message, 'error'); return; }
-  showAlert(id ? 'แก้ไขข้อมูลลูกค้าสำเร็จ' : 'เพิ่มลูกค้าสำเร็จ');
-  closeModal('modal-customer');
-  document.getElementById('customer-id').value = '';
-  loadCustomers();
-}
 
-// ---- REPORT ----
-async function loadReport() {
-  const { data: items } = await sb.from('order_items').select('qty, price_per_unit, products(code, name, size)');
-  const { data: orders } = await sb.from('orders').select('id, type');
-  const orderIds = new Set((orders||[]).filter(o=>o.type==='order').map(o=>o.id));
+  const orders = [
+    { id: "SO-26-0814", customer: "C-0089", date: "2026-05-15", status: "Processing", items: 4, total: 1842000, advance: 920000, paid: 920000, dueDate: "2026-06-14", shipping: "In transit" },
+    { id: "SO-26-0813", customer: "C-0142", date: "2026-05-15", status: "Confirmed", items: 6, total: 2240000, advance: 672000, paid: 672000, dueDate: "2026-06-14", shipping: "Scheduled" },
+    { id: "SO-26-0812", customer: "C-0214", date: "2026-05-14", status: "Shipped", items: 3, total: 982000, advance: 294600, paid: 982000, dueDate: "Paid", shipping: "Delivered" },
+    { id: "SO-26-0811", customer: "C-0317", date: "2026-05-14", status: "Processing", items: 8, total: 3120000, advance: 1248000, paid: 1248000, dueDate: "2026-06-13", shipping: "Preparing" },
+    { id: "SO-26-0810", customer: "C-0089", date: "2026-05-13", status: "Shipped", items: 5, total: 1640000, advance: 492000, paid: 492000, dueDate: "2026-06-12", shipping: "In transit" },
+    { id: "SO-26-0809", customer: "C-0623", date: "2026-05-13", status: "Quote", items: 4, total: 1280000, advance: 0, paid: 0, dueDate: "—", shipping: "—" },
+    { id: "SO-26-0808", customer: "C-0408", date: "2026-05-12", status: "Confirmed", items: 2, total: 480000, advance: 144000, paid: 144000, dueDate: "2026-06-11", shipping: "Scheduled" },
+    { id: "SO-26-0807", customer: "C-0142", date: "2026-05-12", status: "Shipped", items: 7, total: 2840000, advance: 852000, paid: 2840000, dueDate: "Paid", shipping: "Delivered" },
+    { id: "SO-26-0806", customer: "C-0512", date: "2026-05-11", status: "Completed", items: 3, total: 720000, advance: 216000, paid: 720000, dueDate: "Paid", shipping: "Delivered" },
+    { id: "SO-26-0805", customer: "C-0734", date: "2026-05-10", status: "Overdue", items: 2, total: 380000, advance: 114000, paid: 114000, dueDate: "2026-05-08", shipping: "Delivered" },
+    { id: "SO-26-0804", customer: "C-0317", date: "2026-05-10", status: "Completed", items: 6, total: 1980000, advance: 594000, paid: 1980000, dueDate: "Paid", shipping: "Delivered" },
+    { id: "SO-26-0803", customer: "C-0214", date: "2026-05-09", status: "Completed", items: 4, total: 1120000, advance: 336000, paid: 1120000, dueDate: "Paid", shipping: "Delivered" },
+  ];
 
-  const grouped = {};
-  (items||[]).forEach(item => {
-    const key = item.products?.code || '?';
-    if (!grouped[key]) grouped[key] = { name: item.products?.name || key, total: 0, qty: 0 };
-    grouped[key].total += item.qty * item.price_per_unit;
-    grouped[key].qty += item.qty;
+  const shipments = [
+    { id: "SH-26-0421", order: "SO-26-0814", driver: "Khun Surin", truck: "70-2841", route: "Bangkok → Pathum Thani", status: "In transit", eta: "Today 16:30", load: 28.4, progress: 72 },
+    { id: "SH-26-0420", order: "SO-26-0810", driver: "Khun Adisorn", truck: "82-4419", route: "Bangkok → Rayong", status: "In transit", eta: "Tomorrow 09:00", load: 18.2, progress: 45 },
+    { id: "SH-26-0419", order: "SO-26-0813", driver: "Khun Wichai", truck: "70-3320", route: "Bangkok → Samut Prakan", status: "Loading", eta: "Today 14:00", load: 32.6, progress: 18 },
+    { id: "SH-26-0418", order: "SO-26-0811", driver: "Khun Boonmee", truck: "82-4012", route: "Bangkok → Chonburi", status: "Scheduled", eta: "Tomorrow 11:30", load: 41.8, progress: 0 },
+    { id: "SH-26-0417", order: "SO-26-0808", driver: "Khun Manop", truck: "70-1188", route: "Bangkok → Pattaya", status: "Scheduled", eta: "May 17 08:00", load: 12.4, progress: 0 },
+    { id: "SH-26-0416", order: "SO-26-0812", driver: "Khun Sak", truck: "82-7700", route: "Bangkok → Sriracha", status: "Delivered", eta: "Delivered 09:42", load: 14.8, progress: 100 },
+    { id: "SH-26-0415", order: "SO-26-0807", driver: "Khun Pinyo", truck: "70-9942", route: "Bangkok → Ayutthaya", status: "Delivered", eta: "Delivered yesterday", load: 38.2, progress: 100 },
+  ];
+
+  const salesByMonth = [
+    { m: "Sep", sales: 42.1, orders: 64 },
+    { m: "Oct", sales: 48.6, orders: 78 },
+    { m: "Nov", sales: 51.3, orders: 82 },
+    { m: "Dec", sales: 38.4, orders: 56 },
+    { m: "Jan", sales: 56.8, orders: 92 },
+    { m: "Feb", sales: 62.4, orders: 104 },
+    { m: "Mar", sales: 71.2, orders: 118 },
+    { m: "Apr", sales: 68.5, orders: 112 },
+    { m: "May", sales: 54.2, orders: 86 },
+  ];
+
+  const categoryShare = [
+    { name: "Rebar", value: 32, color: "#22d3ee", revenue: 18.4 },
+    { name: "Beams", value: 24, color: "#8b5cf6", revenue: 13.8 },
+    { name: "Plates", value: 18, color: "#f59e0b", revenue: 10.4 },
+    { name: "Coils", value: 12, color: "#10b981", revenue: 6.8 },
+    { name: "Pipes", value: 8, color: "#fb923c", revenue: 4.6 },
+    { name: "Other", value: 6, color: "#64748b", revenue: 3.4 },
+  ];
+
+  const daily = Array.from({ length: 30 }, (_, i) => {
+    const base = 1.6 + Math.sin(i / 3) * 0.6 + (i / 30) * 0.4;
+    const noise = (Math.sin(i * 1.7) + Math.cos(i * 2.3)) * 0.2;
+    return { d: i + 1, v: Math.max(0.4, base + noise) };
   });
 
-  const sorted = Object.entries(grouped).sort((a,b) => b[1].total - a[1].total);
-  const max = sorted[0]?.[1].total || 1;
+  const products = loadProducts();
+  const customers = loadCustomers();
 
-  document.getElementById('report-chart').innerHTML = sorted.length ? sorted.map(([code, d]) => `
-    <div class="chart-bar-row">
-      <div class="chart-bar-label">${code}</div>
-      <div class="chart-bar-bg">
-        <div class="chart-bar-fill" style="width:${Math.max(4,(d.total/max*100))}%">฿${fmt(d.total)}</div>
-      </div>
-      <div style="min-width:80px;text-align:right;font-size:12px;color:var(--text2);font-family:var(--mono)">${fmt(d.qty)} เส้น</div>
-    </div>`).join('') : '<div style="text-align:center;color:var(--text3);padding:24px">ยังไม่มีข้อมูลยอดขาย</div>';
+  return { fmtTHB, fmtNum, products, customers, orders, shipments, salesByMonth, categoryShare, daily, supabaseHelpers };
+})();
+
+// Icons
+const Icon = ({ name, size = 18, className = "" }) => {
+  const paths = {
+    dashboard: <><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></>,
+    box: <><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/></>,
+    truck: <><rect x="1" y="6" width="14" height="11" rx="1.5"/><path d="M15 9h4l3 4v4h-7V9z"/><circle cx="6" cy="19" r="2"/><circle cx="18" cy="19" r="2"/></>,
+    cart: <><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l3 13h12l2-9H6"/></>,
+    report: <><path d="M9 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-3"/><rect x="9" y="2" width="6" height="3" rx="1"/><path d="M8 12h8M8 16h5M8 8h3"/></>,
+    chart: <><path d="M3 3v18h18"/><rect x="7" y="13" width="3" height="6"/><rect x="12" y="9" width="3" height="10"/><rect x="17" y="6" width="3" height="13"/></>,
+    users: <><circle cx="9" cy="8" r="3.5"/><path d="M2 21c0-3.5 3-6 7-6s7 2.5 7 6"/><circle cx="17" cy="9" r="3"/><path d="M22 20c0-2.5-2-4.5-5-4.5"/></>,
+    search: <><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4 4"/></>,
+    bell: <><path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></>,
+    plus: <><path d="M12 5v14M5 12h14"/></>,
+    filter: <><path d="M3 5h18M6 12h12M10 19h4"/></>,
+    download: <><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></>,
+    arrow_up: <><path d="M7 14l5-5 5 5"/></>,
+    arrow_down: <><path d="M7 10l5 5 5-5"/></>,
+    arrow_right: <><path d="M5 12h14M13 6l6 6-6 6"/></>,
+    check: <><path d="M5 12l5 5L20 7"/></>,
+    x: <><path d="M6 6l12 12M18 6L6 18"/></>,
+    warning: <><path d="M12 2 2 21h20L12 2z"/><path d="M12 9v5M12 17h.01"/></>,
+    settings: <><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></>,
+    package: <><path d="M16.5 9.4 7.55 4.24M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.27 6.96 12 12.01l8.73-5.05M12 22.08V12"/></>,
+    money: <><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M6 12h.01M18 12h.01"/></>,
+    calendar: <><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></>,
+    eye: <><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></>,
+    edit: <><path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></>,
+    trend: <><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></>,
+    pin: <><path d="M12 17v5"/><path d="M9 10.76V6.6a1 1 0 0 1 .6-.92 5 5 0 0 1 5 0 1 1 0 0 1 .6.92v4.16a3 3 0 0 0 .87 2.11l1.27 1.28a1 1 0 0 1-.71 1.7H6.37a1 1 0 0 1-.71-1.7l1.27-1.28A3 3 0 0 0 9 10.76z"/></>,
+    location: <><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></>,
+    refresh: <><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></>,
+    chevron_right: <><path d="M9 6l6 6-6 6"/></>,
+    chevron_down: <><path d="M6 9l6 6 6-6"/></>,
+    sparkle: <><path d="M12 3v3M12 18v3M21 12h-3M6 12H3M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1M18.4 18.4l-2.1-2.1M7.7 7.7 5.6 5.6"/></>,
+    factory: <><path d="M2 20h20"/><path d="M22 20V8l-6 4V8l-6 4V4H4v16"/><path d="M8 12h.01M12 16h.01M16 16h.01"/></>,
+  };
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      {paths[name] || null}
+    </svg>
+  );
+};
+
+const CountUp = ({ value, duration = 900, format = (n) => n.toLocaleString(), suffix = "", prefix = "" }) => {
+  const [v, setV] = React.useState(0);
+  React.useEffect(() => {
+    const t0 = performance.now();
+    let raf;
+    const tick = (t) => {
+      const p = Math.min(1, (t - t0) / duration);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setV(value * eased);
+      if (p < 1) raf = requestAnimationFrame(tick);
+      else setV(value);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value, duration]);
+  return <span className="count-up">{prefix}{format(v)}{suffix}</span>;
+};
+
+window.__toasts = { items: [], listeners: [] };
+window.toast = (msg, kind = "info") => {
+  const id = Math.random().toString(36).slice(2);
+  window.__toasts.items.push({ id, msg, kind });
+  window.__toasts.listeners.forEach(fn => fn());
+  setTimeout(() => {
+    window.__toasts.items = window.__toasts.items.filter(t => t.id !== id);
+    window.__toasts.listeners.forEach(fn => fn());
+  }, 3200);
+};
+
+const ToastHost = () => {
+  const [, force] = React.useReducer(x => x + 1, 0);
+  React.useEffect(() => {
+    window.__toasts.listeners.push(force);
+    return () => { window.__toasts.listeners = window.__toasts.listeners.filter(f => f !== force); };
+  }, []);
+  return (
+    <div className="toast-wrap">
+      {window.__toasts.items.map(t => (
+        <div key={t.id} className={`toast ${t.kind}`}>
+          <Icon name={t.kind === "ok" ? "check" : t.kind === "warn" ? "warning" : "sparkle"} size={16}/>
+          <span>{t.msg}</span>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// Tweaks Hook & Components
+const useTweaks = (defaults) => {
+  const [tweaks, setTweaks] = React.useState(defaults);
+  const set = (key, value) => setTweaks(t => ({...t, [key]: value}));
+  return [tweaks, set];
+};
+
+const TweaksPanel = ({ title, children }) => {
+  const [open, setOpen] = React.useState(false);
+  return (
+    <div style={{position:'fixed', right:20, bottom:20, zIndex:99}}>
+      <button
+        className="icon-btn"
+        onClick={() => setOpen(!open)}
+        title="Tweaks"
+      >
+        <Icon name="settings" size={16}/>
+      </button>
+      {open && (
+        <div style={{
+          position:'absolute', right:0, bottom:48, width:260,
+          background:'var(--bg-card)', border:'1px solid var(--border)',
+          borderRadius:12, padding:16, boxShadow:'0 20px 50px rgba(0,0,0,0.5)',
+          maxHeight:'60vh', overflow:'auto'
+        }}>
+          <div style={{marginBottom:12, fontSize:13, fontWeight:600}}>{title}</div>
+          <div style={{display:'flex', flexDirection:'column', gap:12}}>
+            {children}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const TweakSection = ({ label }) => (
+  <div style={{fontSize:10, fontWeight:600, color:'var(--text-faint)', textTransform:'uppercase', letterSpacing:'0.1em', marginTop:6}}>{label}</div>
+);
+
+const TweakSelect = ({ label, value, options, onChange }) => (
+  <div style={{display:'flex', flexDirection:'column', gap:4}}>
+    <label style={{fontSize:12, fontWeight:500}}>{label}</label>
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      style={{padding:'6px 8px', borderRadius:6, border:'1px solid var(--border)', background:'var(--bg-elev)', color:'inherit', fontSize:12}}
+    >
+      {options.map(opt => (
+        <option key={opt.value} value={opt.value}>{opt.label}</option>
+      ))}
+    </select>
+  </div>
+);
+
+const TweakColor = ({ label, value, options, onChange }) => (
+  <div style={{display:'flex', flexDirection:'column', gap:6}}>
+    <label style={{fontSize:12, fontWeight:500}}>{label}</label>
+    <div style={{display:'flex', gap:6, flexWrap:'wrap'}}>
+      {options.map(opt => (
+        <button
+          key={opt}
+          onClick={() => onChange(opt)}
+          style={{
+            width:32, height:32, borderRadius:6,
+            background:opt, border: value === opt ? '2px solid var(--text)' : '1px solid var(--border)',
+            cursor:'pointer', transition:'all .2s ease'
+          }}
+        />
+      ))}
+    </div>
+  </div>
+);
+
+// Charts
+function smoothPath(pts) {
+  if (pts.length < 2) return "";
+  let d = `M ${pts[0].x} ${pts[0].y}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] || pts[i];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[i + 2] || p2;
+    const c1x = p1.x + (p2.x - p0.x) / 6;
+    const c1y = p1.y + (p2.y - p0.y) / 6;
+    const c2x = p2.x - (p3.x - p1.x) / 6;
+    const c2y = p2.y - (p3.y - p1.y) / 6;
+    d += ` C ${c1x} ${c1y}, ${c2x} ${c2y}, ${p2.x} ${p2.y}`;
+  }
+  return d;
 }
 
-// Override open order modal button
-document.querySelector('[onclick="openModal(\'modal-order\')"]').setAttribute('onclick', 'openOrderModal()');
+const BarChart = ({ data, yKey = "sales", xKey = "m", height = 240, color = "#22d3ee", unit = "" }) => {
+  const [hover, setHover] = React.useState(null);
+  const W = 100;
+  const padL = 6, padR = 4, padT = 6, padB = 12;
+  const innerW = W - padL - padR;
+  const innerH = height - padT - padB;
+  const max = Math.max(...data.map(d => d[yKey])) * 1.15;
+  const bw = innerW / data.length * 0.6;
+  const gap = innerW / data.length * 0.4;
+  const step = innerW / data.length;
 
-// Init
-loadDashboard();
+  return (
+    <div style={{position:'relative'}}>
+      <svg viewBox={`0 0 ${W} ${height}`} preserveAspectRatio="none" style={{width:'100%', height, overflow:'visible'}}>
+        <defs>
+          <linearGradient id="barGrad" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stopColor={color} stopOpacity="0.95"/>
+            <stop offset="100%" stopColor={color} stopOpacity="0.25"/>
+          </linearGradient>
+        </defs>
+        {[0, 0.25, 0.5, 0.75, 1].map((p, i) => (
+          <line key={i} x1={padL} x2={W - padR} y1={padT + innerH * p} y2={padT + innerH * p} stroke="#1f2f4a" strokeWidth="0.15" strokeDasharray="0.5 0.5"/>
+        ))}
+        {data.map((d, i) => {
+          const v = d[yKey];
+          const h = (v / max) * innerH;
+          const x = padL + i * step + gap / 2;
+          const y = padT + innerH - h;
+          return (
+            <g key={i} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)} style={{cursor:'pointer'}}>
+              <rect
+                x={x} y={y} width={bw} height={h}
+                fill="url(#barGrad)"
+                rx="0.4"
+                style={{opacity: hover === i ? 1 : 0.85, transition:'opacity .15s ease'}}
+              />
+            </g>
+          );
+        })}
+        {data.map((d, i) => (
+          <text key={i} x={padL + i * step + step/2} y={height - 3} fontSize="2.4" fill="#5d6e8a" textAnchor="middle" fontFamily="JetBrains Mono">
+            {d[xKey]}
+          </text>
+        ))}
+      </svg>
+      {hover !== null && (
+        <div className="tip" style={{left: `${((hover + 0.5) / data.length) * 100}%`, top: 8}}>
+          <div style={{fontSize:11, color:'#8a9bb8'}}>{data[hover][xKey]}</div>
+          <div style={{color:'#e6edf7', fontWeight:600, fontSize:13}}>{data[hover][yKey].toFixed(1)}{unit}</div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const AreaChart = ({ data, yKey = "sales", xKey = "m", height = 240, color = "#22d3ee", filled = true, unit = "" }) => {
+  const [hover, setHover] = React.useState(null);
+  const W = 100;
+  const padL = 6, padR = 4, padT = 8, padB = 12;
+  const innerW = W - padL - padR;
+  const innerH = height - padT - padB;
+  const max = Math.max(...data.map(d => d[yKey])) * 1.15;
+  const min = Math.min(...data.map(d => d[yKey])) * 0.6;
+  const range = max - min || 1;
+  const step = innerW / (data.length - 1);
+
+  const pts = data.map((d, i) => ({
+    x: padL + i * step,
+    y: padT + innerH - ((d[yKey] - min) / range) * innerH,
+  }));
+  const path = smoothPath(pts);
+  const areaPath = path + ` L ${pts[pts.length-1].x} ${padT + innerH} L ${pts[0].x} ${padT + innerH} Z`;
+
+  return (
+    <div style={{position:'relative'}}>
+      <svg viewBox={`0 0 ${W} ${height}`} preserveAspectRatio="none" style={{width:'100%', height, overflow:'visible'}}>
+        <defs>
+          <linearGradient id="areaGrad" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stopColor={color} stopOpacity="0.4"/>
+            <stop offset="100%" stopColor={color} stopOpacity="0"/>
+          </linearGradient>
+        </defs>
+        {[0, 0.25, 0.5, 0.75, 1].map((p, i) => (
+          <line key={i} x1={padL} x2={W - padR} y1={padT + innerH * p} y2={padT + innerH * p} stroke="#1f2f4a" strokeWidth="0.15" strokeDasharray="0.5 0.5"/>
+        ))}
+        {filled && <path d={areaPath} fill="url(#areaGrad)"/>}
+        <path d={path} fill="none" stroke={color} strokeWidth="0.5" strokeLinecap="round"/>
+        {pts.map((p, i) => (
+          <circle
+            key={i}
+            cx={p.x} cy={p.y} r={hover === i ? 1.2 : 0.7}
+            fill={color}
+            stroke="#070d18" strokeWidth="0.3"
+            onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}
+            style={{cursor:'pointer', transition:'r .15s ease'}}
+          />
+        ))}
+      </svg>
+      {hover !== null && (
+        <div className="tip" style={{left: `${((hover) / (data.length - 1)) * 100}%`, top: 8}}>
+          <div style={{fontSize:11, color:'#8a9bb8'}}>{data[hover][xKey]}</div>
+          <div style={{color:'#e6edf7', fontWeight:600, fontSize:13}}>{data[hover][yKey].toFixed(1)}{unit}</div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const MixedChart = ({ data, barKey, lineKey, xKey = "m", height = 240, barColor = "#8b5cf6", lineColor = "#22d3ee" }) => {
+  const W = 100;
+  const padL = 6, padR = 4, padT = 8, padB = 12;
+  const innerW = W - padL - padR;
+  const innerH = height - padT - padB;
+  const maxBar = Math.max(...data.map(d => d[barKey])) * 1.15;
+  const maxLine = Math.max(...data.map(d => d[lineKey])) * 1.15;
+  const bw = innerW / data.length * 0.4;
+  const gap = innerW / data.length * 0.6;
+  const step = innerW / data.length;
+
+  const pts = data.map((d, i) => ({
+    x: padL + i * step + step/2,
+    y: padT + innerH - ((d[lineKey] / maxLine) * innerH),
+  }));
+  const linePath = smoothPath(pts);
+
+  return (
+    <svg viewBox={`0 0 ${W} ${height}`} preserveAspectRatio="none" style={{width:'100%', height}}>
+      <defs>
+        <linearGradient id="mixGrad" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stopColor={barColor} stopOpacity="0.4"/>
+          <stop offset="100%" stopColor={barColor} stopOpacity="0"/>
+        </linearGradient>
+      </defs>
+      {[0, 0.25, 0.5, 0.75, 1].map((p, i) => (
+        <line key={i} x1={padL} x2={W - padR} y1={padT + innerH * p} y2={padT + innerH * p} stroke="#1f2f4a" strokeWidth="0.15" strokeDasharray="0.5 0.5"/>
+      ))}
+      {data.map((d, i) => {
+        const h = (d[barKey] / maxBar) * innerH;
+        const x = padL + i * step + gap / 2;
+        const y = padT + innerH - h;
+        return (
+          <rect key={i} x={x} y={y} width={bw} height={h} fill={barColor} rx="0.3" opacity="0.7"/>
+        );
+      })}
+      <path d={linePath} fill="none" stroke={lineColor} strokeWidth="0.6" strokeLinecap="round"/>
+      {data.map((d, i) => (
+        <text key={i} x={padL + i * step + step/2} y={height - 3} fontSize="2.4" fill="#5d6e8a" textAnchor="middle" fontFamily="JetBrains Mono">
+          {d[xKey]}
+        </text>
+      ))}
+    </svg>
+  );
+};
+
+const Donut = ({ data, size = 200, thickness = 40 }) => {
+  const total = data.reduce((s, d) => s + d.value, 0);
+  let angle = -Math.PI / 2;
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      {data.map((d, i) => {
+        const slice = (d.value / total) * 2 * Math.PI;
+        const r = size / 2;
+        const innerR = r - thickness;
+        const x1 = r + innerR * Math.cos(angle);
+        const y1 = r + innerR * Math.sin(angle);
+        const x2 = r + r * Math.cos(angle);
+        const y2 = r + r * Math.sin(angle);
+        angle += slice;
+        const x3 = r + r * Math.cos(angle);
+        const y3 = r + r * Math.sin(angle);
+        const x4 = r + innerR * Math.cos(angle);
+        const y4 = r + innerR * Math.sin(angle);
+        const largeArc = slice > Math.PI ? 1 : 0;
+        const d_str = `M ${x2} ${y2} A ${r} ${r} 0 ${largeArc} 1 ${x3} ${y3} L ${x4} ${y4} A ${innerR} ${innerR} 0 ${largeArc} 0 ${x1} ${y1} Z`;
+        return <path key={i} d={d_str} fill={d.color} opacity="0.85"/>;
+      })}
+    </svg>
+  );
+};
+
+const Sparkline = ({ data, color = "#22d3ee", width = 80, height = 28 }) => {
+  const max = Math.max(...data);
+  const min = Math.min(...data);
+  const range = max - min || 1;
+  const pts = data.map((v, i) => ({
+    x: (i / (data.length - 1)) * (width - 4) + 2,
+    y: height - 4 - ((v - min) / range) * (height - 8),
+  }));
+  const path = smoothPath(pts);
+  return (
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} style={{width, height}}>
+      <path d={path} fill="none" stroke={color} strokeWidth="1" strokeLinecap="round" opacity="0.7"/>
+    </svg>
+  );
+};
+
+// CSV Parser
+const parseCSV = (text) => {
+  const lines = text.trim().split('\n');
+  const headers = lines[0].split(',').map(h => h.trim());
+  const rows = lines.slice(1).map(line => {
+    const values = line.split(',').map(v => v.trim());
+    const obj = {};
+    headers.forEach((h, i) => obj[h] = values[i] || '');
+    return obj;
+  });
+  return { headers, rows };
+};
+
+// Sidebar & Topbar
+const Sidebar = ({ current, onChange }) => {
+  const items = [
+    { id: "dashboard", label: "Dashboard", icon: "dashboard", section: "Overview" },
+    { id: "stock", label: "Stock Check", icon: "box", section: "Operations", badge: "3", badgeAlert: true },
+    { id: "shipping", label: "Shipping", icon: "truck", section: "Operations", badge: "5" },
+    { id: "orders", label: "Orders & Payments", icon: "cart", section: "Operations", badge: "12" },
+    { id: "inventory", label: "Inventory Report", icon: "report", section: "Reports" },
+    { id: "statistics", label: "Statistics", icon: "chart", section: "Reports" },
+    { id: "customers", label: "Customers", icon: "users", section: "Reports" },
+    { id: "import", label: "Data Import", icon: "download", section: "Admin" },
+  ];
+  const sections = [...new Set(items.map(i => i.section))];
+
+  return (
+    <aside className="sidebar">
+      <div className="brand">
+        <div className="brand-logo">
+          <Icon name="factory" size={18}/>
+        </div>
+        <div>
+          <div className="brand-name">SteelFlow</div>
+          <div className="brand-sub">Sales Report System</div>
+        </div>
+      </div>
+      {sections.map(sec => (
+        <React.Fragment key={sec}>
+          <div className="nav-section-label">{sec}</div>
+          {items.filter(i => i.section === sec).map(item => (
+            <button
+              key={item.id}
+              className={`nav-item ${current === item.id ? 'active' : ''}`}
+              onClick={() => onChange(item.id)}
+            >
+              <Icon name={item.icon} size={17} className="nav-icon"/>
+              <span>{item.label}</span>
+              {item.badge && <span className={`nav-badge ${item.badgeAlert ? 'alert' : ''}`}>{item.badge}</span>}
+            </button>
+          ))}
+        </React.Fragment>
+      ))}
+      <div className="sidebar-footer">
+        <div className="user-chip">
+          <div className="avatar">TS</div>
+          <div style={{flex:1, minWidth:0}}>
+            <div className="user-name">Ty Steel</div>
+            <div className="user-role">Sales Manager</div>
+          </div>
+          <button className="icon-btn" style={{width:28, height:28}}>
+            <Icon name="settings" size={14}/>
+          </button>
+        </div>
+      </div>
+    </aside>
+  );
+};
+
+const Topbar = ({ page }) => {
+  const titles = {
+    dashboard: "Dashboard",
+    stock: "Stock Check",
+    shipping: "Shipping",
+    orders: "Orders & Payments",
+    inventory: "Inventory Report",
+    statistics: "Statistics",
+    customers: "Customers",
+  };
+  return (
+    <div className="topbar">
+      <div className="crumbs">
+        <span>Sales</span>
+        <Icon name="chevron_right" size={12}/>
+        <strong>{titles[page]}</strong>
+      </div>
+      <div className="search">
+        <Icon name="search" size={15}/>
+        <input placeholder="Search SKU, order, customer…"/>
+      </div>
+      <div className="actions">
+        <button className="icon-btn" title="Refresh" onClick={() => window.toast("Synced with mill · 14 updates", "info")}>
+          <Icon name="refresh" size={15}/>
+        </button>
+        <button className="icon-btn">
+          <Icon name="calendar" size={15}/>
+        </button>
+        <button className="icon-btn" title="Alerts">
+          <Icon name="bell" size={15}/>
+          <span className="dot"></span>
+        </button>
+        <button className="btn primary" onClick={() => window.toast("New order draft created · SO-26-0815", "ok")}>
+          <Icon name="plus" size={14}/> New Order
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// Pages
+const Dashboard = ({ chartType }) => {
+  const { fmtTHB, fmtNum, salesByMonth, customers, orders, categoryShare } = window.SteelData;
+  const totalSales = salesByMonth.reduce((s, m) => s + m.sales, 0);
+  const pendingPayments = orders.filter(o => o.dueDate !== "Paid" && o.dueDate !== "—").reduce((s, o) => s + (o.total - o.paid), 0);
+  const activeOrders = orders.filter(o => ["Processing","Confirmed","Quote"].includes(o.status)).length;
+
+  const renderChart = () => {
+    if (chartType === "bar") return <BarChart data={salesByMonth} yKey="sales" xKey="m" height={260} color="var(--cyan)" unit="M"/>;
+    if (chartType === "line") return <AreaChart data={salesByMonth} yKey="sales" xKey="m" height={260} color="var(--cyan)" filled={false} unit="M"/>;
+    if (chartType === "mixed") return <MixedChart data={salesByMonth} barKey="orders" lineKey="sales" xKey="m" height={260} barColor="var(--violet)" lineColor="var(--cyan)"/>;
+    return <AreaChart data={salesByMonth} yKey="sales" xKey="m" height={260} color="var(--cyan)" filled={true} unit="M"/>;
+  };
+
+  return (
+    <div className="page">
+      <div className="page-header">
+        <div>
+          <div className="page-title">Welcome back, Ty</div>
+          <div className="page-sub">Here's what's moving in the yard today · Friday, May 15</div>
+        </div>
+      </div>
+
+      <div className="kpi-grid">
+        <div className="kpi" style={{'--accent': 'var(--cyan)'}}>
+          <div className="kpi-label">Total Revenue · YTD</div>
+          <div className="kpi-value"><CountUp value={totalSales} format={n => n.toFixed(1)} prefix="฿" suffix="M"/></div>
+          <div className="kpi-foot"><span className="delta up"><Icon name="arrow_up" size={11}/> 12.4%</span></div>
+        </div>
+        <div className="kpi" style={{'--accent': 'var(--violet)'}}>
+          <div className="kpi-label">Active Orders</div>
+          <div className="kpi-value"><CountUp value={activeOrders}/><span className="unit">open</span></div>
+          <div className="kpi-foot"><span className="delta up"><Icon name="arrow_up" size={11}/> 8 new</span></div>
+        </div>
+        <div className="kpi" style={{'--accent': 'var(--amber)'}}>
+          <div className="kpi-label">Pending Payment</div>
+          <div className="kpi-value"><CountUp value={pendingPayments/1000000} format={n => n.toFixed(2)} prefix="฿" suffix="M"/></div>
+          <div className="kpi-foot"><span className="delta flat">3 due this week</span></div>
+        </div>
+        <div className="kpi" style={{'--accent': 'var(--rose)'}}>
+          <div className="kpi-label">Low Stock</div>
+          <div className="kpi-value"><CountUp value={3}/><span className="unit">SKUs</span></div>
+          <div className="kpi-foot"><span className="delta down">Below reorder</span></div>
+        </div>
+      </div>
+
+      <div className="grid-2 mb-3">
+        <div className="card chart-card">
+          <div className="chart-header">
+            <div>
+              <div className="card-title">Sales Performance</div>
+              <div className="card-sub">Revenue · last 9 months</div>
+            </div>
+          </div>
+          {renderChart()}
+        </div>
+        <div className="card chart-card">
+          <div className="chart-header">
+            <div>
+              <div className="card-title">Product Mix</div>
+              <div className="card-sub">Revenue by category</div>
+            </div>
+          </div>
+          <div style={{display:'flex', alignItems:'center', gap:18}}>
+            <Donut data={categoryShare} size={170} thickness={20}/>
+            <div style={{flex:1}}>
+              {categoryShare.map(c => (
+                <div key={c.name} style={{display:'flex', gap:8, fontSize:12, marginBottom:8}}>
+                  <div style={{width:8, height:8, borderRadius:2, background:c.color, marginTop:2}}/>
+                  <span style={{flex:1}}>{c.name}</span>
+                  <span className="num text-dim">฿{c.revenue.toFixed(1)}M</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid-2 mb-3">
+        <div className="card" style={{padding:0}}>
+          <div className="flex between center" style={{padding:'16px 18px', borderBottom:'1px solid var(--border)'}}>
+            <div>
+              <div className="card-title">Recent Orders</div>
+              <div className="card-sub">Latest sales</div>
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Order</th><th>Customer</th><th className="right">Total</th><th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {orders.slice(0, 6).map(o => {
+                const cust = customers.find(c => c.id === o.customer);
+                const klass = o.status === "Shipped" || o.status === "Completed" ? "ok" : o.status === "Processing" ? "info" : o.status === "Overdue" ? "danger" : "warn";
+                return (
+                  <tr key={o.id}>
+                    <td className="mono" style={{fontSize:12}}>{o.id}</td>
+                    <td><div style={{display:'flex', alignItems:'center', gap:8}}>
+                      <div style={{width:24, height:24, borderRadius:5, background:cust.color, display:'grid', placeItems:'center', fontSize:10, fontWeight:700, color:'#0a1220'}}>{cust.short}</div>
+                      <span style={{fontSize:12.5}}>{cust.name}</span></div>
+                    </td>
+                    <td className="num right font-semi">{fmtTHB(o.total)}</td>
+                    <td><span className={`badge ${klass}`}><span className="dot"></span>{o.status}</span></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="card">
+          <div className="card-title mb-3">Live Activity</div>
+          <div className="timeline scroll-list">
+            <div className="tl-item">
+              <div className="text-sm font-semi">SO-26-0814 confirmed · ฿1.84M</div>
+              <div className="text-faint text-sm">Siam Steel · 4 SKUs · 2 min ago</div>
+            </div>
+            <div className="tl-item ok">
+              <div className="text-sm font-semi">Payment received · ฿920,000</div>
+              <div className="text-faint text-sm">30% advance · SO-26-0814 · 8 min ago</div>
+            </div>
+            <div className="tl-item warn">
+              <div className="text-sm font-semi">Low stock alert · DB16-SD50</div>
+              <div className="text-faint text-sm">38.4 tons remaining · 14 min ago</div>
+            </div>
+            <div className="tl-item">
+              <div className="text-sm font-semi">Shipment dispatched · SH-26-0421</div>
+              <div className="text-faint text-sm">Truck 70-2841 · 28.4t · 32 min ago</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const StockPage = () => {
+  const { products } = window.SteelData;
+  const [filter, setFilter] = React.useState("all");
+
+  const categories = ["all", ...new Set(products.map(p => p.category))];
+  const lowCount = products.filter(p => (p.stock - p.reserved) < p.lowAt).length;
+  const filtered = filter === "all" ? products : products.filter(p => p.category === filter);
+  const totalValue = products.reduce((s, p) => s + p.stock * p.price, 0);
+
+  return (
+    <div className="page">
+      <div className="page-header">
+        <div>
+          <div className="page-title">Stock Check</div>
+          <div className="page-sub">Live inventory · Last sync 2 min ago</div>
+        </div>
+      </div>
+
+      <div className="kpi-grid mb-3">
+        <div className="kpi" style={{'--accent':'var(--cyan)'}}>
+          <div className="kpi-label">Total Stock Value</div>
+          <div className="kpi-value"><CountUp value={totalValue/1000000} format={n=>n.toFixed(1)} prefix="฿" suffix="M"/></div>
+        </div>
+        <div className="kpi" style={{'--accent':'var(--violet)'}}>
+          <div className="kpi-label">Active SKUs</div>
+          <div className="kpi-value"><CountUp value={products.length}/><span className="unit">items</span></div>
+        </div>
+        <div className="kpi" style={{'--accent':'var(--emerald)'}}>
+          <div className="kpi-label">Categories</div>
+          <div className="kpi-value"><CountUp value={categories.length - 1}/><span className="unit">types</span></div>
+        </div>
+        <div className="kpi" style={{'--accent':'var(--rose)'}}>
+          <div className="kpi-label">Reorder Required</div>
+          <div className="kpi-value"><CountUp value={lowCount}/><span className="unit">SKUs</span></div>
+        </div>
+      </div>
+
+      <div className="filter-bar">
+        {categories.map(c => (
+          <button key={c} className={`chip ${filter === c ? 'active' : ''}`} onClick={() => setFilter(c)}>
+            {c === "all" ? "All" : c}
+            <span className="count">{c === "all" ? products.length : products.filter(p => p.category === c).length}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Product</th><th>Grade</th><th className="right">On Hand</th><th className="right">Available</th><th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map(p => {
+              const avail = p.stock - p.reserved;
+              const pct = Math.min(100, (avail / (p.lowAt * 3)) * 100);
+              const klass = avail < p.lowAt ? "danger" : avail < p.lowAt * 1.5 ? "warn" : "ok";
+              return (
+                <tr key={p.sku}>
+                  <td><div className="font-semi" style={{fontSize:13}}>{p.name}</div><div className="text-faint text-mono" style={{fontSize:11}}>{p.sku}</div></td>
+                  <td><span className="badge muted">{p.grade}</span></td>
+                  <td className="num right">{p.stock.toLocaleString()} {p.unit}</td>
+                  <td className="num right font-semi">{avail.toFixed(1)}</td>
+                  <td><span className={`badge ${klass}`}><span className="dot"></span>{avail < p.lowAt ? "Reorder" : "In stock"}</span></td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
+const ShippingPage = () => {
+  const { shipments } = window.SteelData;
+  return (
+    <div className="page">
+      <div className="page-header">
+        <div>
+          <div className="page-title">Shipping</div>
+          <div className="page-sub">Live shipment tracking · {shipments.filter(s => s.status !== "Delivered").length} active</div>
+        </div>
+      </div>
+
+      <div className="grid-2 mb-3">
+        {shipments.map(s => (
+          <div key={s.id} className="card">
+            <div className="flex between center mb-2">
+              <div className="card-title">{s.id}</div>
+              <span className="badge" style={{background: s.status === "In transit" ? "rgba(34,211,238,0.1)" : s.status === "Delivered" ? "rgba(16,185,129,0.1)" : "rgba(245,158,11,0.1)", color: s.status === "In transit" ? "var(--cyan)" : s.status === "Delivered" ? "var(--emerald)" : "var(--amber)"}}>{s.status}</span>
+            </div>
+            <div className="text-sm text-dim mb-2">{s.route}</div>
+            <div className="bar"><div style={{width: `${s.progress}%`, background: s.progress === 100 ? "var(--emerald)" : "var(--cyan)"}}></div></div>
+            <div className="flex between text-sm text-faint mt-2">
+              <span>{s.load} tons</span>
+              <span>{s.progress}%</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const OrdersPage = () => {
+  const { orders, customers, fmtTHB } = window.SteelData;
+  const [status, setStatus] = React.useState("all");
+
+  const statuses = ["all", "Quote", "Confirmed", "Processing", "Shipped", "Completed"];
+  const filtered = status === "all" ? orders : orders.filter(o => o.status === status);
+  const totalValue = orders.reduce((s, o) => s + o.total, 0);
+
+  return (
+    <div className="page">
+      <div className="page-header">
+        <div>
+          <div className="page-title">Orders & Payments</div>
+          <div className="page-sub">Sales orders with payment tracking</div>
+        </div>
+      </div>
+
+      <div className="kpi-grid mb-3">
+        <div className="kpi" style={{'--accent':'var(--cyan)'}}>
+          <div className="kpi-label">Order Value</div>
+          <div className="kpi-value"><CountUp value={totalValue/1000000} format={n=>n.toFixed(2)} prefix="฿" suffix="M"/></div>
+        </div>
+        <div className="kpi" style={{'--accent':'var(--violet)'}}>
+          <div className="kpi-label">Total Orders</div>
+          <div className="kpi-value"><CountUp value={orders.length}/></div>
+        </div>
+      </div>
+
+      <div className="filter-bar">
+        {statuses.map(s => (
+          <button key={s} className={`chip ${status === s ? 'active' : ''}`} onClick={() => setStatus(s)}>
+            {s === "all" ? "All" : s}
+            <span className="count">{s === "all" ? orders.length : orders.filter(o => o.status === s).length}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Order</th><th>Customer</th><th className="right">Total</th><th>Payment</th><th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map(o => {
+              const cust = customers.find(c => c.id === o.customer);
+              const paidPct = (o.paid / o.total) * 100;
+              const klass = o.status === "Shipped" || o.status === "Completed" ? "ok" : o.status === "Processing" ? "info" : "warn";
+              return (
+                <tr key={o.id}>
+                  <td className="mono font-semi" style={{fontSize:12.5}}>{o.id}</td>
+                  <td><div style={{display:'flex', alignItems:'center', gap:8}}>
+                    <div style={{width:24, height:24, borderRadius:5, background:cust.color, display:'grid', placeItems:'center', fontSize:10, fontWeight:700, color:'#0a1220'}}>{cust.short}</div>
+                    {cust.name}
+                  </div></td>
+                  <td className="num right font-semi">{fmtTHB(o.total)}</td>
+                  <td><div className="bar"><div style={{width:`${paidPct}%`}}></div></div></td>
+                  <td><span className={`badge ${klass}`}><span className="dot"></span>{o.status}</span></td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
+const InventoryPage = () => {
+  const { categoryShare } = window.SteelData;
+  return (
+    <div className="page">
+      <div className="page-header">
+        <div>
+          <div className="page-title">Inventory Report</div>
+          <div className="page-sub">Stock by category and value</div>
+        </div>
+      </div>
+
+      <div className="grid-2 mb-3">
+        <div className="card chart-card">
+          <div className="card-title mb-3">Value by Category</div>
+          <BarChart data={categoryShare} yKey="revenue" xKey="name" height={260} color="var(--cyan)" unit="M"/>
+        </div>
+        <div className="card">
+          <div className="card-title mb-3">Category Breakdown</div>
+          {categoryShare.map(c => (
+            <div key={c.name} style={{marginBottom:12}}>
+              <div className="flex between mb-1">
+                <span className="text-sm">{c.name}</span>
+                <span className="num font-semi">฿{c.revenue.toFixed(1)}M</span>
+              </div>
+              <div className="bar"><div style={{width:`${(c.revenue/categoryShare.reduce((s,x)=>s+x.revenue,0))*100}%`, background:c.color}}></div></div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const StatsPage = () => {
+  const { salesByMonth } = window.SteelData;
+  return (
+    <div className="page">
+      <div className="page-header">
+        <div>
+          <div className="page-title">Statistics</div>
+          <div className="page-sub">Sales analytics and trends</div>
+        </div>
+      </div>
+
+      <div className="card chart-card">
+        <div className="card-title mb-3">Monthly Sales Trend</div>
+        <AreaChart data={salesByMonth} yKey="sales" xKey="m" height={300} color="var(--cyan)" unit="M"/>
+      </div>
+    </div>
+  );
+};
+
+const CustomersPage = () => {
+  const { customers } = window.SteelData;
+  return (
+    <div className="page">
+      <div className="page-header">
+        <div>
+          <div className="page-title">Customers</div>
+          <div className="page-sub">{customers.length} active accounts</div>
+        </div>
+      </div>
+
+      <div style={{display:'grid', gridTemplateColumns:'repeat(2, 1fr)', gap:14}}>
+        {customers.map(c => (
+          <div key={c.id} className="card">
+            <div className="flex center gap-2 mb-2">
+              <div style={{width:40, height:40, borderRadius:8, background:c.color, display:'grid', placeItems:'center', fontSize:13, fontWeight:700, color:'#0a1220'}}>{c.short}</div>
+              <div style={{flex:1}}>
+                <div className="font-semi">{c.name}</div>
+                <div className="text-faint text-mono" style={{fontSize:11}}>{c.tier}</div>
+              </div>
+            </div>
+            <div className="text-sm mb-2">{c.contact}</div>
+            <div className="divider"></div>
+            <div style={{display:'flex', justifyContent:'space-between', fontSize:12, marginTop:8}}>
+              <div><div className="text-faint text-mono">Orders</div><div className="font-semi">{c.orders}</div></div>
+              <div><div className="text-faint text-mono">Lifetime</div><div className="font-semi">฿{(c.lifetime/1000000).toFixed(1)}M</div></div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const ImportPage = () => {
+  const [importType, setImportType] = React.useState("products");
+  const [csvText, setCsvText] = React.useState("");
+  const [preview, setPreview] = React.useState(null);
+  const [fileName, setFileName] = React.useState("");
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target.result;
+      setCsvText(text);
+      try {
+        const { headers, rows } = parseCSV(text);
+        setPreview({ headers, rows: rows.slice(0, 5), total: rows.length });
+      } catch (err) {
+        window.toast("Error parsing CSV: " + err.message, "warn");
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleImport = async () => {
+    if (!preview) {
+      window.toast("Please select a file first", "warn");
+      return;
+    }
+
+    try {
+      const { headers, rows } = parseCSV(csvText);
+
+      if (importType === "products") {
+        const products = rows.map((row, i) => ({
+          code: row.code || row.Code || row.sku || row.SKU || `SKU-${i}`,
+          name: row.name || row.Name || "",
+          category: row.category || row.Category || "",
+          size: row.size || row.Size || row.grade || row.Grade || "",
+          unit: row.unit || row.Unit || "pcs",
+          price_per_unit: parseFloat(row.price_per_unit || row.price || row.Price || 0),
+          stock_qty: parseFloat(row.stock_qty || row.stock || row.Stock || 0),
+          min_stock: parseInt(row.min_stock || row.lowAt || row.low_at || 50),
+        }));
+
+        const result = await supabaseHelpers.insertProducts(products);
+        if (result.success) {
+          window.toast(`✓ Imported ${products.length} products to Supabase!`, "ok");
+        } else {
+          window.toast(`Error: ${result.error}`, "warn");
+        }
+      } else {
+        const customers = rows.map((row, i) => ({
+          code: row.code || row.Code || row.id || row.ID || `C-${String(i).padStart(4, '0')}`,
+          name: row.name || row.Name || "",
+          phone: row.phone || row.Phone || "",
+          address: row.address || row.Address || "",
+        }));
+
+        const result = await supabaseHelpers.insertCustomers(customers);
+        if (result.success) {
+          window.toast(`✓ Imported ${customers.length} customers to Supabase!`, "ok");
+        } else {
+          window.toast(`Error: ${result.error}`, "warn");
+        }
+      }
+
+      setCsvText("");
+      setPreview(null);
+      setFileName("");
+    } catch (err) {
+      window.toast("Error importing data: " + err.message, "warn");
+    }
+  };
+
+  const downloadTemplate = () => {
+    let csv = "";
+    if (importType === "products") {
+      csv = "code,name,category,size,unit,price_per_unit,stock_qty,min_stock\n";
+      csv += "RB-DB10-SD40,Deformed Bar DB10,Rebar,SD40,ton,24800,100,50\n";
+      csv += "HB-H200-SS400,H-Beam 200×200,Beams,SS400,pcs,8400,200,100\n";
+    } else {
+      csv = "code,name,phone,address\n";
+      csv += "C-0001,Bangkok Construction Co.,02-555-1842,123 Sukhumvit Rd, Bangkok\n";
+      csv += "C-0002,Siam Steel Builders,02-512-7733,456 Rama 9 Rd, Bangkok\n";
+    }
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${importType}_template.csv`;
+    a.click();
+  };
+
+  return (
+    <div className="page">
+      <div className="page-header">
+        <div>
+          <div className="page-title">Data Import</div>
+          <div className="page-sub">Upload CSV files to import products and customers</div>
+        </div>
+      </div>
+
+      <div style={{maxWidth:800}}>
+        {/* Import Type Selector */}
+        <div className="card mb-3">
+          <div className="card-title mb-3">Select Data Type</div>
+          <div style={{display:'flex', gap:12}}>
+            {["products", "customers"].map(type => (
+              <button
+                key={type}
+                onClick={() => {
+                  setImportType(type);
+                  setCsvText("");
+                  setPreview(null);
+                  setFileName("");
+                }}
+                style={{
+                  flex:1, padding:'12px 16px', border:'1px solid var(--border)',
+                  borderRadius:10, background: importType === type ? 'rgba(34,211,238,0.1)' : 'var(--bg-card)',
+                  color: importType === type ? 'var(--cyan)' : 'var(--text-dim)',
+                  fontWeight:600, cursor:'pointer', transition:'all .2s ease',
+                  borderColor: importType === type ? 'var(--cyan)' : 'var(--border)'
+                }}
+              >
+                {type === "products" ? "📦 Products" : "👥 Customers"}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* File Upload */}
+        <div className="card mb-3">
+          <div className="card-title mb-3">Upload CSV File</div>
+          <div style={{
+            padding:'32px', border:'2px dashed var(--border)', borderRadius:10,
+            textAlign:'center', background:'var(--bg-elev)', cursor:'pointer',
+            transition:'all .2s ease'
+          }} onClick={() => document.getElementById('csv-input').click()}>
+            <Icon name="download" size={32} style={{marginBottom:12, opacity:0.7}}/>
+            <div className="text-lg font-semi">Click to upload</div>
+            <div className="text-sm text-faint">or drag CSV file here</div>
+            {fileName && <div className="text-sm" style={{marginTop:8, color:'var(--cyan)'}}>{fileName}</div>}
+          </div>
+          <input
+            id="csv-input"
+            type="file"
+            accept=".csv,.xlsx"
+            onChange={handleFileChange}
+            style={{display:'none'}}
+          />
+          <button
+            className="btn ghost"
+            onClick={downloadTemplate}
+            style={{width:'100%', marginTop:12, justifyContent:'center'}}
+          >
+            <Icon name="download" size={14}/> Download Template
+          </button>
+        </div>
+
+        {/* Preview */}
+        {preview && (
+          <div className="card mb-3">
+            <div className="card-title mb-3">
+              Preview ({preview.total} total rows, showing first {preview.rows.length})
+            </div>
+            <div style={{overflowX:'auto'}}>
+              <table style={{width:'100%', fontSize:12}}>
+                <thead>
+                  <tr>
+                    {preview.headers.map(h => (
+                      <th key={h} style={{padding:'8px 12px', textAlign:'left', background:'var(--bg-elev)', borderBottom:'1px solid var(--border)', fontWeight:600}}>
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {preview.rows.map((row, i) => (
+                    <tr key={i} style={{borderBottom:'1px solid var(--border)'}}>
+                      {preview.headers.map(h => (
+                        <td key={h} style={{padding:'8px 12px', fontSize:11}}>
+                          {row[h] || "-"}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Actions */}
+        {preview && (
+          <div style={{display:'flex', gap:12}}>
+            <button className="btn" onClick={() => {setCsvText(""); setPreview(null);}} style={{flex:1}}>Cancel</button>
+            <button className="btn primary" onClick={handleImport} style={{flex:1}}>
+              <Icon name="check" size={14}/> Import {preview.total} Records
+            </button>
+          </div>
+        )}
+
+        {/* Info */}
+        <div className="card" style={{marginTop:24, background:'rgba(34,211,238,0.05)', border:'1px solid rgba(34,211,238,0.2)'}}>
+          <div className="card-title mb-2">📋 Instructions</div>
+          <ul style={{fontSize:13, color:'var(--text-dim)', lineHeight:1.8, paddingLeft:20}}>
+            <li>Download the template CSV file above</li>
+            <li>Fill in your data (use correct column names)</li>
+            <li>Upload the CSV file to preview</li>
+            <li>Click Import to save (stored in Supabase)</li>
+            <li>Data persists until cleared or exported to Supabase</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Main App
+const TWEAK_DEFAULTS = { chartType: "area", accentColor: "#22d3ee" };
+
+const App = () => {
+  const [page, setPage] = React.useState("dashboard");
+  const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [products, customers] = await Promise.all([
+          supabaseHelpers.getProducts(),
+          supabaseHelpers.getCustomers()
+        ]);
+        if (products.length > 0) localStorage.setItem('steelflow_products', JSON.stringify(products));
+        if (customers.length > 0) localStorage.setItem('steelflow_customers', JSON.stringify(customers));
+        window.toast('Synced from Supabase · Data loaded successfully', 'ok');
+      } catch (e) {
+        console.error('Failed to load data:', e);
+        window.toast('Using cached data', 'info');
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, []);
+
+  React.useEffect(() => {
+    document.documentElement.style.setProperty('--cyan', t.accentColor);
+    const hex = t.accentColor.replace('#','');
+    const r = parseInt(hex.slice(0,2),16);
+    const g = parseInt(hex.slice(2,4),16);
+    const b = parseInt(hex.slice(4,6),16);
+    document.documentElement.style.setProperty('--cyan-glow', `rgba(${r},${g},${b},0.18)`);
+  }, [t.accentColor]);
+
+  const renderPage = () => {
+    const props = { chartType: t.chartType };
+    switch(page) {
+      case "dashboard": return <Dashboard {...props}/>;
+      case "stock": return <StockPage {...props}/>;
+      case "shipping": return <ShippingPage {...props}/>;
+      case "orders": return <OrdersPage {...props}/>;
+      case "inventory": return <InventoryPage {...props}/>;
+      case "statistics": return <StatsPage {...props}/>;
+      case "customers": return <CustomersPage {...props}/>;
+      case "import": return <ImportPage/>;
+      default: return <Dashboard {...props}/>;
+    }
+  };
+
+  if (loading) {
+    return (
+      <div style={{display:'flex', alignItems:'center', justifyContent:'center', height:'100vh', background:'var(--bg)'}}>
+        <div style={{textAlign:'center'}}>
+          <div style={{fontSize:32, marginBottom:16}}>⚙️</div>
+          <div style={{color:'var(--text)', fontSize:18, marginBottom:8}}>Loading SteelFlow...</div>
+          <div style={{color:'var(--text-dim)', fontSize:13}}>Syncing from Supabase</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="app">
+      <Sidebar current={page} onChange={setPage}/>
+      <div className="main">
+        <Topbar page={page}/>
+        <div key={page} style={{flex:1, overflow:'auto'}}>
+          {renderPage()}
+        </div>
+      </div>
+      <ToastHost/>
+      <TweaksPanel title="Tweaks">
+        <TweakSection label="Charts"/>
+        <TweakSelect
+          label="Chart style"
+          value={t.chartType}
+          options={[
+            { value: 'area', label: 'Area (default)' },
+            { value: 'bar', label: 'Bar chart' },
+            { value: 'line', label: 'Line only' },
+            { value: 'mixed', label: 'Mixed' },
+          ]}
+          onChange={(v) => setTweak('chartType', v)}
+        />
+        <TweakSection label="Theme"/>
+        <TweakColor
+          label="Accent"
+          value={t.accentColor}
+          options={['#22d3ee', '#8b5cf6', '#10b981', '#f59e0b', '#f43f5e']}
+          onChange={(v) => setTweak('accentColor', v)}
+        />
+      </TweaksPanel>
+    </div>
+  );
+};
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
 </script>
 </body>
 </html>
