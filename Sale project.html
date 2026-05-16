@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SteelFlow — ระบบจัดการร้านเหล็ก</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0f1117;
+  --bg2: #181c27;
+  --bg3: #1e2333;
+  --border: #2a3045;
+  --accent: #e8a830;
+  --accent2: #f0c060;
+  --red: #e85555;
+  --green: #3dba7a;
+  --blue: #4a9eff;
+  --text: #e8eaf0;
+  --text2: #8892aa;
+  --text3: #555e75;
+  --font: 'IBM Plex Sans Thai', sans-serif;
+  --mono: 'IBM Plex Mono', monospace;
+  --radius: 8px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 14px; min-height: 100vh; }
+
+/* Layout */
+.layout { display: flex; min-height: 100vh; }
+.sidebar { width: 220px; background: var(--bg2); border-right: 1px solid var(--border); display: flex; flex-direction: column; position: fixed; top: 0; bottom: 0; left: 0; z-index: 100; }
+.main { margin-left: 220px; flex: 1; padding: 28px; min-height: 100vh; }
+
+/* Sidebar */
+.logo { padding: 20px 20px 16px; border-bottom: 1px solid var(--border); }
+.logo-title { font-size: 18px; font-weight: 600; color: var(--accent); letter-spacing: 0.5px; }
+.logo-sub { font-size: 11px; color: var(--text3); margin-top: 2px; font-family: var(--mono); }
+.nav { padding: 12px 0; flex: 1; }
+.nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 20px; cursor: pointer; color: var(--text2); font-size: 13.5px; transition: all 0.15s; border-left: 3px solid transparent; }
+.nav-item:hover { background: var(--bg3); color: var(--text); }
+.nav-item.active { background: var(--bg3); color: var(--accent); border-left-color: var(--accent); }
+.nav-icon { font-size: 16px; width: 20px; text-align: center; }
+.sidebar-footer { padding: 16px 20px; border-top: 1px solid var(--border); font-size: 11px; color: var(--text3); font-family: var(--mono); }
+
+/* Page */
+.page { display: none; }
+.page.active { display: block; }
+.page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+.page-title { font-size: 20px; font-weight: 600; }
+.page-sub { color: var(--text2); font-size: 13px; margin-top: 3px; }
+
+/* Cards */
+.card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
+.kpi { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; }
+.kpi-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.8px; font-family: var(--mono); }
+.kpi-value { font-size: 26px; font-weight: 600; margin-top: 6px; font-family: var(--mono); }
+.kpi-change { font-size: 12px; color: var(--text2); margin-top: 4px; }
+.kpi.accent .kpi-value { color: var(--accent); }
+.kpi.green .kpi-value { color: var(--green); }
+.kpi.red .kpi-value { color: var(--red); }
+.kpi.blue .kpi-value { color: var(--blue); }
+
+/* Table */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th { text-align: left; padding: 10px 14px; font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.8px; border-bottom: 1px solid var(--border); font-family: var(--mono); font-weight: 500; }
+td { padding: 12px 14px; border-bottom: 1px solid var(--border); color: var(--text); font-size: 13.5px; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--bg3); }
+.mono { font-family: var(--mono); }
+
+/* Badge */
+.badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 11px; font-family: var(--mono); font-weight: 500; }
+.badge-green { background: rgba(61,186,122,0.15); color: var(--green); }
+.badge-red { background: rgba(232,85,85,0.15); color: var(--red); }
+.badge-yellow { background: rgba(232,168,48,0.15); color: var(--accent); }
+.badge-blue { background: rgba(74,158,255,0.15); color: var(--blue); }
+.badge-gray { background: rgba(136,146,170,0.15); color: var(--text2); }
+
+/* Buttons */
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: var(--radius); font-size: 13px; font-family: var(--font); cursor: pointer; border: none; transition: all 0.15s; font-weight: 500; }
+.btn-primary { background: var(--accent); color: #111; }
+.btn-primary:hover { background: var(--accent2); }
+.btn-ghost { background: transparent; color: var(--text2); border: 1px solid var(--border); }
+.btn-ghost:hover { background: var(--bg3); color: var(--text); }
+.btn-danger { background: rgba(232,85,85,0.15); color: var(--red); border: 1px solid rgba(232,85,85,0.3); }
+.btn-danger:hover { background: rgba(232,85,85,0.25); }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+
+/* Form */
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+.form-group.full { grid-column: 1 / -1; }
+label { font-size: 12px; color: var(--text2); font-family: var(--mono); }
+input, select, textarea { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius); padding: 9px 12px; color: var(--text); font-family: var(--font); font-size: 13.5px; width: 100%; transition: border 0.15s; outline: none; }
+input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+select option { background: var(--bg3); }
+
+/* Modal */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 999; align-items: center; justify-content: center; }
+.modal-overlay.open { display: flex; }
+.modal { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 28px; width: 560px; max-height: 90vh; overflow-y: auto; }
+.modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+.modal-title { font-size: 16px; font-weight: 600; }
+.modal-close { background: none; border: none; color: var(--text2); cursor: pointer; font-size: 20px; padding: 4px; }
+.modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+
+/* Alert */
+.alert { padding: 10px 14px; border-radius: var(--radius); font-size: 13px; margin-bottom: 16px; display: none; }
+.alert.show { display: block; }
+.alert-success { background: rgba(61,186,122,0.15); color: var(--green); border: 1px solid rgba(61,186,122,0.3); }
+.alert-error { background: rgba(232,85,85,0.15); color: var(--red); border: 1px solid rgba(232,85,85,0.3); }
+
+/* Low stock indicator */
+.stock-low { color: var(--red); }
+.stock-ok { color: var(--green); }
+.stock-warn { color: var(--accent); }
+
+/* Loading */
+.loading { text-align: center; padding: 40px; color: var(--text3); font-family: var(--mono); }
+
+/* Section separator */
+.section-title { font-size: 13px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.8px; font-family: var(--mono); margin-bottom: 14px; }
+
+/* Order items */
+.order-item-row { display: grid; grid-template-columns: 1fr 100px 120px 40px; gap: 10px; align-items: center; margin-bottom: 8px; }
+.order-total { text-align: right; margin-top: 12px; font-size: 16px; font-weight: 600; font-family: var(--mono); color: var(--accent); }
+
+/* Stats chart placeholder */
+.chart-bar-wrap { margin-top: 16px; }
+.chart-bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.chart-bar-label { width: 60px; font-size: 12px; color: var(--text2); font-family: var(--mono); }
+.chart-bar-bg { flex: 1; background: var(--bg3); border-radius: 4px; height: 24px; overflow: hidden; }
+.chart-bar-fill { height: 100%; background: var(--accent); border-radius: 4px; transition: width 0.8s ease; display: flex; align-items: center; padding-left: 8px; font-size: 11px; font-family: var(--mono); color: #111; font-weight: 600; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+@media (max-width: 900px) {
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .sidebar { width: 60px; }
+  .logo-title, .logo-sub, .nav-item span { display: none; }
+  .main { margin-left: 60px; padding: 16px; }
+}
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-title">⚙ SteelFlow</div>
+      <div class="logo-sub">ระบบจัดการร้านเหล็ก</div>
+    </div>
+    <nav class="nav">
+      <div class="nav-item active" onclick="showPage('dashboard')">
+        <span class="nav-icon">▦</span><span>Dashboard</span>
+      </div>
+      <div class="nav-item" onclick="showPage('stock')">
+        <span class="nav-icon">▤</span><span>สต็อกสินค้า</span>
+      </div>
+      <div class="nav-item" onclick="showPage('orders')">
+        <span class="nav-icon">▣</span><span>คำสั่งซื้อ</span>
+      </div>
+      <div class="nav-item" onclick="showPage('customers')">
+        <span class="nav-icon">◉</span><span>ลูกค้า</span>
+      </div>
+      <div class="nav-item" onclick="showPage('report')">
+        <span class="nav-icon">▥</span><span>รายงาน</span>
+      </div>
+    </nav>
+    <div class="sidebar-footer">v1.0 · gepixbhlsk...</div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+
+    <!-- Alert global -->
+    <div class="alert" id="global-alert"></div>
+
+    <!-- DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Dashboard</div>
+          <div class="page-sub">ภาพรวมธุรกิจวันนี้</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="loadDashboard()">↺ รีเฟรช</button>
+      </div>
+      <div class="kpi-grid">
+        <div class="kpi accent"><div class="kpi-label">ยอดขายเดือนนี้</div><div class="kpi-value" id="kpi-sales">—</div><div class="kpi-change">บาท</div></div>
+        <div class="kpi blue"><div class="kpi-label">คำสั่งซื้อทั้งหมด</div><div class="kpi-value" id="kpi-orders">—</div><div class="kpi-change">รายการ</div></div>
+        <div class="kpi green"><div class="kpi-label">ลูกค้าทั้งหมด</div><div class="kpi-value" id="kpi-customers">—</div><div class="kpi-change">ราย</div></div>
+        <div class="kpi red"><div class="kpi-label">สต็อกต่ำกว่ากำหนด</div><div class="kpi-value" id="kpi-lowstock">—</div><div class="kpi-change">รายการ</div></div>
+      </div>
+      <div class="card">
+        <div class="section-title">คำสั่งซื้อล่าสุด</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>เลขที่</th><th>ลูกค้า</th><th>ประเภท</th><th>สถานะ</th><th>มูลค่า</th><th>วันที่</th></tr></thead>
+            <tbody id="recent-orders"><tr><td colspan="6" class="loading">กำลังโหลด...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- STOCK -->
+    <div class="page" id="page-stock">
+      <div class="page-header">
+        <div>
+          <div class="page-title">สต็อกสินค้า</div>
+          <div class="page-sub">เหล็กเส้น Rebar ทุกขนาด</div>
+        </div>
+        <button class="btn btn-primary" onclick="openModal('modal-product')">+ เพิ่มสินค้า</button>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>รหัส</th><th>ชื่อสินค้า</th><th>ขนาด</th><th>ราคา/เส้น</th><th>สต็อก</th><th>สต็อกต่ำสุด</th><th>สถานะ</th><th></th></tr></thead>
+            <tbody id="stock-table"><tr><td colspan="8" class="loading">กำลังโหลด...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ORDERS -->
+    <div class="page" id="page-orders">
+      <div class="page-header">
+        <div>
+          <div class="page-title">คำสั่งซื้อ / ใบเสนอราคา</div>
+          <div class="page-sub">จัดการออเดอร์ทั้งหมด</div>
+        </div>
+        <button class="btn btn-primary" onclick="openModal('modal-order')">+ สร้างคำสั่งซื้อ</button>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>เลขที่</th><th>ประเภท</th><th>ลูกค้า</th><th>สถานะ</th><th>มูลค่า</th><th>วันที่</th><th></th></tr></thead>
+            <tbody id="orders-table"><tr><td colspan="7" class="loading">กำลังโหลด...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- CUSTOMERS -->
+    <div class="page" id="page-customers">
+      <div class="page-header">
+        <div>
+          <div class="page-title">ลูกค้า</div>
+          <div class="page-sub">ข้อมูลลูกค้าทั้งหมด</div>
+        </div>
+        <button class="btn btn-primary" onclick="openModal('modal-customer')">+ เพิ่มลูกค้า</button>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>รหัส</th><th>ชื่อ</th><th>เบอร์โทร</th><th>วงเงินเครดิต</th><th>ที่อยู่</th><th></th></tr></thead>
+            <tbody id="customers-table"><tr><td colspan="6" class="loading">กำลังโหลด...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- REPORT -->
+    <div class="page" id="page-report">
+      <div class="page-header">
+        <div>
+          <div class="page-title">รายงานยอดขาย</div>
+          <div class="page-sub">สรุปยอดขายตามสินค้า</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="loadReport()">↺ รีเฟรช</button>
+      </div>
+      <div class="card">
+        <div class="section-title">ยอดขายตามขนาดเหล็ก</div>
+        <div class="chart-bar-wrap" id="report-chart"><div class="loading">กำลังโหลด...</div></div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Modal: เพิ่มสินค้า -->
+<div class="modal-overlay" id="modal-product">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">เพิ่ม / แก้ไขสินค้า</div>
+      <button class="modal-close" onclick="closeModal('modal-product')">✕</button>
+    </div>
+    <input type="hidden" id="product-id">
+    <div class="form-grid">
+      <div class="form-group"><label>รหัสสินค้า</label><input id="product-code" placeholder="เช่น DB12"></div>
+      <div class="form-group"><label>ชื่อสินค้า</label><input id="product-name" placeholder="เหล็กเส้น DB12"></div>
+      <div class="form-group"><label>ขนาด</label><input id="product-size" placeholder="DB12 (12mm)"></div>
+      <div class="form-group"><label>หน่วย</label><input id="product-unit" value="เส้น"></div>
+      <div class="form-group"><label>ราคา/หน่วย (บาท)</label><input id="product-price" type="number" placeholder="185"></div>
+      <div class="form-group"><label>จำนวนสต็อก</label><input id="product-stock" type="number" placeholder="0"></div>
+      <div class="form-group"><label>สต็อกต่ำสุด (แจ้งเตือน)</label><input id="product-minstock" type="number" placeholder="20"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-product')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="saveProduct()">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: เพิ่มลูกค้า -->
+<div class="modal-overlay" id="modal-customer">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">เพิ่ม / แก้ไขลูกค้า</div>
+      <button class="modal-close" onclick="closeModal('modal-customer')">✕</button>
+    </div>
+    <input type="hidden" id="customer-id">
+    <div class="form-grid">
+      <div class="form-group"><label>รหัสลูกค้า</label><input id="customer-code" placeholder="C004"></div>
+      <div class="form-group"><label>ชื่อ / บริษัท</label><input id="customer-name" placeholder="บริษัท..."></div>
+      <div class="form-group"><label>เบอร์โทร</label><input id="customer-phone" placeholder="08x-xxx-xxxx"></div>
+      <div class="form-group"><label>วงเงินเครดิต (บาท)</label><input id="customer-credit" type="number" placeholder="0"></div>
+      <div class="form-group full"><label>ที่อยู่</label><textarea id="customer-address" rows="2" placeholder="ที่อยู่..."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-customer')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="saveCustomer()">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: สร้างคำสั่งซื้อ -->
+<div class="modal-overlay" id="modal-order">
+  <div class="modal" style="width:640px">
+    <div class="modal-header">
+      <div class="modal-title">สร้างคำสั่งซื้อ</div>
+      <button class="modal-close" onclick="closeModal('modal-order')">✕</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>ประเภท</label>
+        <select id="order-type">
+          <option value="order">คำสั่งซื้อ</option>
+          <option value="quotation">ใบเสนอราคา</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>ลูกค้า</label>
+        <select id="order-customer"></select>
+      </div>
+      <div class="form-group full"><label>หมายเหตุ</label><input id="order-note" placeholder="หมายเหตุ..."></div>
+    </div>
+    <div style="margin-top:16px">
+      <div class="section-title">รายการสินค้า</div>
+      <div id="order-items-wrap"></div>
+      <button class="btn btn-ghost btn-sm" onclick="addOrderItem()" style="margin-top:8px">+ เพิ่มรายการ</button>
+      <div class="order-total" id="order-total-display">รวม: ฿0</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-order')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="saveOrder()">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://gepixbhlskcmmeadubmx.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdlcGl4Ymhsc2tjbW1lYWR1Ym14Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg5MTQ0NTEsImV4cCI6MjA5NDQ5MDQ1MX0.RXgtSuEKH-tB23V62hwpopC6s3DkBX8NEB5cVux3CW4';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let allProducts = [];
+let allCustomers = [];
+
+// ---- Navigation ----
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.querySelectorAll('.nav-item')[['dashboard','stock','orders','customers','report'].indexOf(name)].classList.add('active');
+  if (name === 'dashboard') loadDashboard();
+  if (name === 'stock') loadStock();
+  if (name === 'orders') loadOrders();
+  if (name === 'customers') loadCustomers();
+  if (name === 'report') loadReport();
+}
+
+// ---- Alert ----
+function showAlert(msg, type='success') {
+  const el = document.getElementById('global-alert');
+  el.textContent = msg;
+  el.className = 'alert show alert-' + type;
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// ---- Modal ----
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// ---- Format ----
+function fmt(n) { return Number(n || 0).toLocaleString('th-TH'); }
+function fmtDate(d) { return new Date(d).toLocaleDateString('th-TH', { day:'2-digit', month:'short', year:'numeric' }); }
+
+function statusBadge(s) {
+  const map = { pending:'badge-yellow', confirmed:'badge-blue', delivered:'badge-green', cancelled:'badge-red', quotation:'badge-gray' };
+  const label = { pending:'รอดำเนินการ', confirmed:'ยืนยันแล้ว', delivered:'จัดส่งแล้ว', cancelled:'ยกเลิก', quotation:'ใบเสนอราคา' };
+  return `<span class="badge ${map[s]||'badge-gray'}">${label[s]||s}</span>`;
+}
+
+// ---- DASHBOARD ----
+async function loadDashboard() {
+  const [{ data: orders }, { data: customers }, { data: products }] = await Promise.all([
+    sb.from('orders').select('*, customers(name)').order('created_at', { ascending: false }),
+    sb.from('customers').select('id'),
+    sb.from('products').select('*'),
+  ]);
+  const thisMonth = new Date(); thisMonth.setDate(1); thisMonth.setHours(0,0,0,0);
+  const monthlySales = (orders||[]).filter(o => o.type==='order' && new Date(o.created_at) >= thisMonth).reduce((s,o) => s + (o.total_amount||0), 0);
+  document.getElementById('kpi-sales').textContent = '฿' + fmt(monthlySales);
+  document.getElementById('kpi-orders').textContent = (orders||[]).filter(o=>o.type==='order').length;
+  document.getElementById('kpi-customers').textContent = (customers||[]).length;
+  const lowStock = (products||[]).filter(p => p.stock_qty <= p.min_stock).length;
+  document.getElementById('kpi-lowstock').textContent = lowStock;
+
+  const recent = (orders||[]).slice(0,8);
+  document.getElementById('recent-orders').innerHTML = recent.length ? recent.map(o => `
+    <tr>
+      <td class="mono">${o.order_no}</td>
+      <td>${o.customers?.name||'—'}</td>
+      <td>${o.type==='quotation'?'ใบเสนอราคา':'คำสั่งซื้อ'}</td>
+      <td>${statusBadge(o.type==='quotation'?'quotation':o.status)}</td>
+      <td class="mono">฿${fmt(o.total_amount)}</td>
+      <td class="mono">${fmtDate(o.created_at)}</td>
+    </tr>`).join('') : '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">ยังไม่มีคำสั่งซื้อ</td></tr>';
+}
+
+// ---- STOCK ----
+async function loadStock() {
+  const { data } = await sb.from('products').select('*').order('code');
+  allProducts = data || [];
+  document.getElementById('stock-table').innerHTML = allProducts.length ? allProducts.map(p => {
+    const low = p.stock_qty <= p.min_stock;
+    const warn = p.stock_qty <= p.min_stock * 1.5 && !low;
+    const cls = low ? 'stock-low' : warn ? 'stock-warn' : 'stock-ok';
+    return `<tr>
+      <td class="mono">${p.code}</td>
+      <td>${p.name}</td>
+      <td>${p.size}</td>
+      <td class="mono">฿${fmt(p.price_per_unit)}</td>
+      <td class="mono ${cls}">${fmt(p.stock_qty)} ${p.unit}</td>
+      <td class="mono">${fmt(p.min_stock)} ${p.unit}</td>
+      <td>${low ? '<span class="badge badge-red">ต่ำ</span>' : warn ? '<span class="badge badge-yellow">ใกล้ต่ำ</span>' : '<span class="badge badge-green">ปกติ</span>'}</td>
+      <td><button class="btn btn-ghost btn-sm" onclick='editProduct(${JSON.stringify(p)})'>แก้ไข</button></td>
+    </tr>`;
+  }).join('') : '<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:24px">ยังไม่มีสินค้า</td></tr>';
+}
+
+function editProduct(p) {
+  document.getElementById('product-id').value = p.id;
+  document.getElementById('product-code').value = p.code;
+  document.getElementById('product-name').value = p.name;
+  document.getElementById('product-size').value = p.size;
+  document.getElementById('product-unit').value = p.unit;
+  document.getElementById('product-price').value = p.price_per_unit;
+  document.getElementById('product-stock').value = p.stock_qty;
+  document.getElementById('product-minstock').value = p.min_stock;
+  openModal('modal-product');
+}
+
+async function saveProduct() {
+  const id = document.getElementById('product-id').value;
+  const data = {
+    code: document.getElementById('product-code').value,
+    name: document.getElementById('product-name').value,
+    size: document.getElementById('product-size').value,
+    unit: document.getElementById('product-unit').value,
+    price_per_unit: parseFloat(document.getElementById('product-price').value) || 0,
+    stock_qty: parseFloat(document.getElementById('product-stock').value) || 0,
+    min_stock: parseFloat(document.getElementById('product-minstock').value) || 0,
+  };
+  const { error } = id ? await sb.from('products').update(data).eq('id', id) : await sb.from('products').insert(data);
+  if (error) { showAlert('เกิดข้อผิดพลาด: ' + error.message, 'error'); return; }
+  showAlert(id ? 'แก้ไขสินค้าสำเร็จ' : 'เพิ่มสินค้าสำเร็จ');
+  closeModal('modal-product');
+  document.getElementById('product-id').value = '';
+  loadStock();
+}
+
+// ---- ORDERS ----
+async function loadOrders() {
+  const { data } = await sb.from('orders').select('*, customers(name)').order('created_at', { ascending: false });
+  document.getElementById('orders-table').innerHTML = (data||[]).length ? data.map(o => `
+    <tr>
+      <td class="mono">${o.order_no}</td>
+      <td>${o.type==='quotation'?'ใบเสนอราคา':'คำสั่งซื้อ'}</td>
+      <td>${o.customers?.name||'—'}</td>
+      <td>${statusBadge(o.type==='quotation'?'quotation':o.status)}</td>
+      <td class="mono">฿${fmt(o.total_amount)}</td>
+      <td class="mono">${fmtDate(o.created_at)}</td>
+      <td>
+        ${o.status==='pending' && o.type==='order' ? `<button class="btn btn-ghost btn-sm" onclick="updateOrderStatus('${o.id}','confirmed')">ยืนยัน</button>` : ''}
+        ${o.status==='confirmed' ? `<button class="btn btn-ghost btn-sm" onclick="updateOrderStatus('${o.id}','delivered')">จัดส่ง</button>` : ''}
+      </td>
+    </tr>`).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">ยังไม่มีคำสั่งซื้อ</td></tr>';
+}
+
+async function updateOrderStatus(id, status) {
+  const { error } = await sb.from('orders').update({ status }).eq('id', id);
+  if (error) { showAlert('เกิดข้อผิดพลาด', 'error'); return; }
+  showAlert('อัปเดตสถานะสำเร็จ');
+  loadOrders();
+}
+
+// Order Modal
+let orderItems = [];
+async function openOrderModal() {
+  const { data } = await sb.from('customers').select('*').order('code');
+  allCustomers = data || [];
+  document.getElementById('order-customer').innerHTML = allCustomers.map(c => `<option value="${c.id}">${c.code} - ${c.name}</option>`).join('');
+  await sb.from('products').select('*').order('code').then(({data}) => { allProducts = data || []; });
+  orderItems = [];
+  addOrderItem();
+  renderOrderItems();
+  openModal('modal-order');
+}
+
+function addOrderItem() {
+  orderItems.push({ product_id: allProducts[0]?.id || '', qty: 1, price: allProducts[0]?.price_per_unit || 0 });
+  renderOrderItems();
+}
+
+function renderOrderItems() {
+  const wrap = document.getElementById('order-items-wrap');
+  wrap.innerHTML = orderItems.map((item, i) => `
+    <div class="order-item-row">
+      <select onchange="onProductChange(${i},this.value)">
+        ${allProducts.map(p => `<option value="${p.id}" ${p.id===item.product_id?'selected':''} data-price="${p.price_per_unit}">${p.code} - ${p.name}</option>`).join('')}
+      </select>
+      <input type="number" value="${item.qty}" min="1" placeholder="จำนวน" onchange="orderItems[${i}].qty=+this.value;calcOrderTotal()">
+      <input type="number" value="${item.price}" placeholder="ราคา" onchange="orderItems[${i}].price=+this.value;calcOrderTotal()">
+      <button class="btn btn-danger btn-sm" onclick="removeOrderItem(${i})">✕</button>
+    </div>`).join('');
+  calcOrderTotal();
+}
+
+function onProductChange(i, pid) {
+  const p = allProducts.find(p => p.id === pid);
+  orderItems[i].product_id = pid;
+  orderItems[i].price = p?.price_per_unit || 0;
+  renderOrderItems();
+}
+
+function removeOrderItem(i) {
+  orderItems.splice(i, 1);
+  renderOrderItems();
+}
+
+function calcOrderTotal() {
+  const total = orderItems.reduce((s, item) => s + (item.qty * item.price), 0);
+  document.getElementById('order-total-display').textContent = 'รวม: ฿' + fmt(total);
+}
+
+async function saveOrder() {
+  if (!orderItems.length) { showAlert('กรุณาเพิ่มรายการสินค้า', 'error'); return; }
+  const total = orderItems.reduce((s, item) => s + (item.qty * item.price), 0);
+  const orderNo = 'ORD-' + Date.now().toString().slice(-6);
+  const type = document.getElementById('order-type').value;
+  const customerId = document.getElementById('order-customer').value;
+  const note = document.getElementById('order-note').value;
+
+  const { data: order, error } = await sb.from('orders').insert({ order_no: orderNo, type, customer_id: customerId, note, total_amount: total }).select().single();
+  if (error) { showAlert('เกิดข้อผิดพลาด: ' + error.message, 'error'); return; }
+
+  const items = orderItems.map(item => ({ order_id: order.id, product_id: item.product_id, qty: item.qty, price_per_unit: item.price }));
+  await sb.from('order_items').insert(items);
+
+  showAlert('สร้างคำสั่งซื้อ ' + orderNo + ' สำเร็จ');
+  closeModal('modal-order');
+  loadOrders();
+}
+
+// ---- CUSTOMERS ----
+async function loadCustomers() {
+  const { data } = await sb.from('customers').select('*').order('code');
+  allCustomers = data || [];
+  document.getElementById('customers-table').innerHTML = allCustomers.length ? allCustomers.map(c => `
+    <tr>
+      <td class="mono">${c.code}</td>
+      <td>${c.name}</td>
+      <td class="mono">${c.phone||'—'}</td>
+      <td class="mono">฿${fmt(c.credit_limit)}</td>
+      <td>${c.address||'—'}</td>
+      <td><button class="btn btn-ghost btn-sm" onclick='editCustomer(${JSON.stringify(c)})'>แก้ไข</button></td>
+    </tr>`).join('') : '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">ยังไม่มีลูกค้า</td></tr>';
+}
+
+function editCustomer(c) {
+  document.getElementById('customer-id').value = c.id;
+  document.getElementById('customer-code').value = c.code;
+  document.getElementById('customer-name').value = c.name;
+  document.getElementById('customer-phone').value = c.phone || '';
+  document.getElementById('customer-credit').value = c.credit_limit || 0;
+  document.getElementById('customer-address').value = c.address || '';
+  openModal('modal-customer');
+}
+
+async function saveCustomer() {
+  const id = document.getElementById('customer-id').value;
+  const data = {
+    code: document.getElementById('customer-code').value,
+    name: document.getElementById('customer-name').value,
+    phone: document.getElementById('customer-phone').value,
+    credit_limit: parseFloat(document.getElementById('customer-credit').value) || 0,
+    address: document.getElementById('customer-address').value,
+  };
+  const { error } = id ? await sb.from('customers').update(data).eq('id', id) : await sb.from('customers').insert(data);
+  if (error) { showAlert('เกิดข้อผิดพลาด: ' + error.message, 'error'); return; }
+  showAlert(id ? 'แก้ไขข้อมูลลูกค้าสำเร็จ' : 'เพิ่มลูกค้าสำเร็จ');
+  closeModal('modal-customer');
+  document.getElementById('customer-id').value = '';
+  loadCustomers();
+}
+
+// ---- REPORT ----
+async function loadReport() {
+  const { data: items } = await sb.from('order_items').select('qty, price_per_unit, products(code, name, size)');
+  const { data: orders } = await sb.from('orders').select('id, type');
+  const orderIds = new Set((orders||[]).filter(o=>o.type==='order').map(o=>o.id));
+
+  const grouped = {};
+  (items||[]).forEach(item => {
+    const key = item.products?.code || '?';
+    if (!grouped[key]) grouped[key] = { name: item.products?.name || key, total: 0, qty: 0 };
+    grouped[key].total += item.qty * item.price_per_unit;
+    grouped[key].qty += item.qty;
+  });
+
+  const sorted = Object.entries(grouped).sort((a,b) => b[1].total - a[1].total);
+  const max = sorted[0]?.[1].total || 1;
+
+  document.getElementById('report-chart').innerHTML = sorted.length ? sorted.map(([code, d]) => `
+    <div class="chart-bar-row">
+      <div class="chart-bar-label">${code}</div>
+      <div class="chart-bar-bg">
+        <div class="chart-bar-fill" style="width:${Math.max(4,(d.total/max*100))}%">฿${fmt(d.total)}</div>
+      </div>
+      <div style="min-width:80px;text-align:right;font-size:12px;color:var(--text2);font-family:var(--mono)">${fmt(d.qty)} เส้น</div>
+    </div>`).join('') : '<div style="text-align:center;color:var(--text3);padding:24px">ยังไม่มีข้อมูลยอดขาย</div>';
+}
+
+// Override open order modal button
+document.querySelector('[onclick="openModal(\'modal-order\')"]').setAttribute('onclick', 'openOrderModal()');
+
+// Init
+loadDashboard();
+</script>
+</body>
+</html>
