@@ -1316,13 +1316,16 @@ const Dashboard = ({ chartType }) => {
             </thead>
             <tbody>
               {orders.slice(0, 6).map(o => {
-                const cust = customers.find(c => c.id === o.customer);
+                const cust = customers.find(c => (c.code || c.id) === o.customer) || { name: o.customer, code: o.customer };
+                const custShort = (cust.name || 'C').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+                const colors = ['#22d3ee', '#8b5cf6', '#10b981', '#f59e0b', '#fb923c', '#f43f5e'];
+                const custColor = colors[(cust.code || '').charCodeAt(0) % colors.length] || '#22d3ee';
                 const klass = o.status === "Shipped" || o.status === "Completed" ? "ok" : o.status === "Processing" ? "info" : o.status === "Overdue" ? "danger" : "warn";
                 return (
                   <tr key={o.id}>
                     <td className="mono" style={{fontSize:12}}>{o.id}</td>
                     <td><div style={{display:'flex', alignItems:'center', gap:8}}>
-                      <div style={{width:24, height:24, borderRadius:5, background:cust.color, display:'grid', placeItems:'center', fontSize:10, fontWeight:700, color:'#0a1220'}}>{cust.short}</div>
+                      <div style={{width:24, height:24, borderRadius:5, background:custColor, display:'grid', placeItems:'center', fontSize:10, fontWeight:700, color:'#0a1220'}}>{custShort}</div>
                       <span style={{fontSize:12.5}}>{cust.name}</span></div>
                     </td>
                     <td className="num right font-semi">{fmtTHB(o.total)}</td>
@@ -1514,14 +1517,17 @@ const OrdersPage = () => {
           </thead>
           <tbody>
             {filtered.map(o => {
-              const cust = customers.find(c => c.id === o.customer);
+              const cust = customers.find(c => (c.code || c.id) === o.customer) || { name: o.customer, code: o.customer };
+              const custShort = (cust.name || 'C').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+              const colors = ['#22d3ee', '#8b5cf6', '#10b981', '#f59e0b', '#fb923c', '#f43f5e'];
+              const custColor = colors[(cust.code || '').charCodeAt(0) % colors.length] || '#22d3ee';
               const paidPct = (o.paid / o.total) * 100;
               const klass = o.status === "Shipped" || o.status === "Completed" ? "ok" : o.status === "Processing" ? "info" : "warn";
               return (
                 <tr key={o.id}>
                   <td className="mono font-semi" style={{fontSize:12.5}}>{o.id}</td>
                   <td><div style={{display:'flex', alignItems:'center', gap:8}}>
-                    <div style={{width:24, height:24, borderRadius:5, background:cust.color, display:'grid', placeItems:'center', fontSize:10, fontWeight:700, color:'#0a1220'}}>{cust.short}</div>
+                    <div style={{width:24, height:24, borderRadius:5, background:custColor, display:'grid', placeItems:'center', fontSize:10, fontWeight:700, color:'#0a1220'}}>{custShort}</div>
                     {cust.name}
                   </div></td>
                   <td className="num right font-semi">{fmtTHB(o.total)}</td>
