@@ -1591,6 +1591,7 @@ const StatsPage = () => {
 
 const CustomersPage = () => {
   const { customers } = window.SteelData;
+  const colors = ['#22d3ee', '#8b5cf6', '#10b981', '#f59e0b', '#fb923c', '#f43f5e', '#3b82f6', '#ec4899'];
   return (
     <div className="page">
       <div className="page-header">
@@ -1601,23 +1602,26 @@ const CustomersPage = () => {
       </div>
 
       <div style={{display:'grid', gridTemplateColumns:'repeat(2, 1fr)', gap:14}}>
-        {customers.map(c => (
-          <div key={c.id} className="card">
-            <div className="flex center gap-2 mb-2">
-              <div style={{width:40, height:40, borderRadius:8, background:c.color, display:'grid', placeItems:'center', fontSize:13, fontWeight:700, color:'#0a1220'}}>{c.short}</div>
-              <div style={{flex:1}}>
-                <div className="font-semi">{c.name}</div>
-                <div className="text-faint text-mono" style={{fontSize:11}}>{c.tier}</div>
+        {customers.map((c, i) => {
+          const color = colors[i % colors.length];
+          const short = (c.name || 'C').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+          return (
+            <div key={c.code || c.id || i} className="card">
+              <div className="flex center gap-2 mb-2">
+                <div style={{width:40, height:40, borderRadius:8, background:color, display:'grid', placeItems:'center', fontSize:13, fontWeight:700, color:'#0a1220'}}>{short}</div>
+                <div style={{flex:1}}>
+                  <div className="font-semi">{c.name}</div>
+                  <div className="text-faint text-mono" style={{fontSize:11}}>{c.code}</div>
+                </div>
+              </div>
+              <div className="text-sm mb-2">📞 {c.phone || '-'}</div>
+              <div className="divider"></div>
+              <div style={{fontSize:12, marginTop:8, color:'var(--text-dim)'}}>
+                📍 {c.address || 'No address'}
               </div>
             </div>
-            <div className="text-sm mb-2">{c.contact}</div>
-            <div className="divider"></div>
-            <div style={{display:'flex', justifyContent:'space-between', fontSize:12, marginTop:8}}>
-              <div><div className="text-faint text-mono">Orders</div><div className="font-semi">{c.orders}</div></div>
-              <div><div className="text-faint text-mono">Lifetime</div><div className="font-semi">฿{(c.lifetime/1000000).toFixed(1)}M</div></div>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -1861,9 +1865,15 @@ const App = () => {
           supabaseHelpers.getProducts(),
           supabaseHelpers.getCustomers()
         ]);
-        if (products.length > 0) localStorage.setItem('steelflow_products', JSON.stringify(products));
-        if (customers.length > 0) localStorage.setItem('steelflow_customers', JSON.stringify(customers));
-        window.toast('Synced from Supabase · Data loaded successfully', 'ok');
+        if (products.length > 0) {
+          localStorage.setItem('steelflow_products', JSON.stringify(products));
+          window.SteelData.products = products;
+        }
+        if (customers.length > 0) {
+          localStorage.setItem('steelflow_customers', JSON.stringify(customers));
+          window.SteelData.customers = customers;
+        }
+        window.toast(`Synced from Supabase · ${products.length} products, ${customers.length} customers`, 'ok');
       } catch (e) {
         console.error('Failed to load data:', e);
         window.toast('Using cached data', 'info');
